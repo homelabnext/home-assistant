@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.1
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.2
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -313,8 +313,8 @@ actions:
               - action: input_text.set_value
                 target:
                   entity_id: "{{ debug_status_helper }}"
-            data:
-              value: "Manual override – automatic movement suppressed"
+                data:
+                  value: "Manual override – automatic movement suppressed"
 
       # Vacation morning: fixed vacation schedule.
       - conditions:
@@ -343,8 +343,8 @@ actions:
               - action: input_text.set_value
                 target:
                   entity_id: "{{ debug_status_helper }}"
-            data:
-              value: "Vacation – opened for day"
+                data:
+                  value: "Vacation – opened for day"
 
       # Vacation evening: wait for all selected windows to be closed.
       - conditions:
@@ -365,8 +365,8 @@ actions:
                   - action: input_text.set_value
                     target:
                       entity_id: "{{ debug_status_helper }}"
-                data:
-                  value: "Vacation – window open, closing delayed"
+                    data:
+                      value: "Vacation – window open, closing delayed"
             else:
               - if:
                   - condition: template
@@ -387,8 +387,8 @@ actions:
                   - action: input_text.set_value
                     target:
                       entity_id: "{{ debug_status_helper }}"
-                data:
-                  value: "Vacation – closed for night"
+                    data:
+                      value: "Vacation – closed for night"
 
       # Normal sunrise-based opening.
       - conditions:
@@ -421,8 +421,8 @@ actions:
               - action: input_text.set_value
                 target:
                   entity_id: "{{ debug_status_helper }}"
-            data:
-              value: "Day mode – opened after sunrise"
+                data:
+                  value: "Day mode – opened after sunrise"
 
       # Normal fixed/not-before morning boundary.
       - conditions:
@@ -466,8 +466,8 @@ actions:
               - action: input_text.set_value
                 target:
                   entity_id: "{{ debug_status_helper }}"
-            data:
-              value: "Day mode – opened at morning boundary"
+                data:
+                  value: "Day mode – opened at morning boundary"
 
       # Normal sunset-based closing. In sun_not_after mode this closes at sunset
       # unless the configured maximum time has already closed it first.
@@ -490,8 +490,8 @@ actions:
                   - action: input_text.set_value
                     target:
                       entity_id: "{{ debug_status_helper }}"
-                data:
-                  value: "Window open – closing delayed"
+                    data:
+                      value: "Window open – closing delayed"
             else:
               - if:
                   - condition: template
@@ -512,8 +512,8 @@ actions:
                   - action: input_text.set_value
                     target:
                       entity_id: "{{ debug_status_helper }}"
-                data:
-                  value: "Night mode – closed after sunset"
+                    data:
+                      value: "Night mode – closed after sunset"
 
       # Normal fixed/not-after evening boundary.
       - conditions:
@@ -547,8 +547,8 @@ actions:
                   - action: input_text.set_value
                     target:
                       entity_id: "{{ debug_status_helper }}"
-                data:
-                  value: "Window open – closing delayed"
+                    data:
+                      value: "Window open – closing delayed"
             else:
               - if:
                   - condition: template
@@ -569,8 +569,8 @@ actions:
                   - action: input_text.set_value
                     target:
                       entity_id: "{{ debug_status_helper }}"
-                data:
-                  value: "Night mode – closed at evening boundary"
+                    data:
+                      value: "Night mode – closed at evening boundary"
 
       # A previously delayed evening close: all selected contacts must now be closed
       # and the relevant evening boundary must already have passed.
@@ -610,8 +610,8 @@ actions:
               - action: input_text.set_value
                 target:
                   entity_id: "{{ debug_status_helper }}"
-            data:
-              value: "Window closed – delayed night closing completed"
+                data:
+                  value: "Window closed – delayed night closing completed"
 
       # Restart recovery: vacation mode.
       - conditions:
@@ -644,8 +644,8 @@ actions:
                           - action: input_text.set_value
                             target:
                               entity_id: "{{ debug_status_helper }}"
-                        data:
-                          value: "Restart recovery – vacation, window open"
+                            data:
+                              value: "Restart recovery – vacation, window open"
                     else:
                       - if:
                           - condition: template
@@ -666,8 +666,8 @@ actions:
                           - action: input_text.set_value
                             target:
                               entity_id: "{{ debug_status_helper }}"
-                        data:
-                          value: "Restart recovery – vacation night restored"
+                            data:
+                              value: "Restart recovery – vacation night restored"
               - conditions:
                   - condition: template
                     value_template: >-
@@ -692,8 +692,8 @@ actions:
                       - action: input_text.set_value
                         target:
                           entity_id: "{{ debug_status_helper }}"
-                    data:
-                      value: "Restart recovery – vacation day restored"
+                        data:
+                          value: "Restart recovery – vacation day restored"
 
       # Restart recovery: normal operation. Uses sun state plus configured hard
       # morning/evening boundaries. This intentionally favors a safe, consistent
@@ -732,8 +732,8 @@ actions:
                           - action: input_text.set_value
                             target:
                               entity_id: "{{ debug_status_helper }}"
-                        data:
-                          value: "Restart recovery – window open, closing delayed"
+                            data:
+                              value: "Restart recovery – window open, closing delayed"
                     else:
                       - if:
                           - condition: template
@@ -754,8 +754,8 @@ actions:
                           - action: input_text.set_value
                             target:
                               entity_id: "{{ debug_status_helper }}"
-                        data:
-                          value: "Restart recovery – night state restored"
+                            data:
+                              value: "Restart recovery – night state restored"
               - conditions:
                   - condition: template
                     value_template: >-
@@ -784,8 +784,8 @@ actions:
                       - action: input_text.set_value
                         target:
                           entity_id: "{{ debug_status_helper }}"
-                    data:
-                      value: "Restart recovery – day state restored"
+                        data:
+                          value: "Restart recovery – day state restored"
 
     default:
       - if:
@@ -795,5 +795,5 @@ actions:
           - action: input_text.set_value
             target:
               entity_id: "{{ debug_status_helper }}"
-        data:
-          value: "Waiting – no movement required"
+            data:
+              value: "Waiting – no movement required"
