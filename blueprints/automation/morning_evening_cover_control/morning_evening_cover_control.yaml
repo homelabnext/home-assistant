@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.2
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.3
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -13,6 +13,8 @@ blueprint:
     - Manual override (input_boolean): suppresses automatic movement while ON.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
+    - Missed-trigger recovery: checks every 5 minutes whether an evening
+      closing is overdue and safely catches it up.
 
     INTEGRATION WITH ADAPTIVE SOLAR SHADING:
     Use the SAME Day Mode helper in both blueprints for the same cover.
@@ -278,6 +280,10 @@ triggers:
     event: start
     id: ha_start
 
+  - trigger: time_pattern
+    minutes: "/5"
+    id: recovery_check
+
 actions:
   - if:
       - condition: trigger
@@ -299,6 +305,43 @@ actions:
       after_evening_time: "{{ now().strftime('%H:%M:%S') >= evening_time_now }}"
       after_vacation_morning: "{{ now().strftime('%H:%M:%S') >= vacation_morning_time }}"
       after_vacation_evening: "{{ now().strftime('%H:%M:%S') >= vacation_evening_time }}"
+      sunset_offset_seconds: >-
+        {% set raw = sunset_offset | string %}
+        {% set sign = -1 if raw.startswith('-') else 1 %}
+        {% set parts = raw.lstrip('+-').split(':') %}
+        {{ sign * ((parts[0] | int) * 3600 + (parts[1] | int) * 60 + (parts[2] | int)) }}
+      evening_sun_due: >-
+        {% set offset = sunset_offset_seconds | int %}
+        {% if offset < 0 %}
+          {% if is_state('sun.sun', 'below_horizon') %}
+            true
+          {% else %}
+            {% set next_setting = state_attr('sun.sun', 'next_setting') %}
+            {{ next_setting is not none and
+               as_timestamp(now()) >= (as_timestamp(next_setting) + offset) }}
+          {% endif %}
+        {% else %}
+          {% if is_state('sun.sun', 'below_horizon') %}
+            {{ as_timestamp(now()) >=
+               (as_timestamp(states.sun.sun.last_changed) + offset) }}
+          {% else %}
+            false
+          {% endif %}
+        {% endif %}
+      evening_due_now: >-
+        {% if vacation_active_now %}
+          {{ after_vacation_evening }}
+        {% elif evening_mode == 'time' %}
+          {{ after_evening_time }}
+        {% elif evening_mode == 'sun_not_after' %}
+          {{ evening_sun_due or after_evening_time }}
+        {% else %}
+          {{ evening_sun_due }}
+        {% endif %}
+      cover_at_night_position: >-
+        {% set pos = state_attr(cover_entity, 'current_position') %}
+        {{ is_state(cover_entity, 'closed') or
+           (pos is not none and (pos | int) <= (close_position | int)) }}
 
   - choose:
       # Manual override: never move a cover automatically.
@@ -580,16 +623,7 @@ actions:
           - condition: template
             value_template: "{{ enable_evening and not windows_open_now }}"
           - condition: template
-            value_template: >-
-              {% if vacation_active_now %}
-                {{ after_vacation_evening }}
-              {% elif evening_mode == 'time' %}
-                {{ after_evening_time }}
-              {% elif evening_mode == 'sun_not_after' %}
-                {{ is_state('sun.sun', 'below_horizon') or after_evening_time }}
-              {% else %}
-                {{ is_state('sun.sun', 'below_horizon') }}
-              {% endif %}
+            value_template: "{{ evening_due_now }}"
         sequence:
           - if:
               - condition: template
@@ -612,6 +646,42 @@ actions:
                   entity_id: "{{ debug_status_helper }}"
                 data:
                   value: "Window closed – delayed night closing completed"
+
+      # Missed-trigger recovery. Runs every 5 minutes and catches up an
+      # overdue evening closing without changing the configured sunset offset.
+      # This is especially useful after blueprint/automation reloads that occur
+      # after the original time/sun trigger has already passed.
+      - conditions:
+          - condition: trigger
+            id: recovery_check
+          - condition: template
+            value_template: "{{ enable_evening and evening_due_now }}"
+          - condition: template
+            value_template: "{{ not windows_open_now }}"
+          - condition: template
+            value_template: "{{ not cover_at_night_position }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ day_mode_helper != '' }}"
+            then:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ day_mode_helper }}"
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: !input close_position
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Recovery – missed evening trigger caught up"
 
       # Restart recovery: vacation mode.
       - conditions:
