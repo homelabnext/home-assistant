@@ -1,0 +1,1663 @@
+blueprint:
+  name: "HomeLabNext – Adaptive Solar Shading v0.1.3"
+  description: >
+    Universal adaptive solar shading for East, South and West facades.
+
+    Features:
+    - East / South / West orientation presets
+    - Optional custom azimuth and solar elevation
+    - Optional illuminance sensor
+    - Outdoor temperature
+    - Solar azimuth / elevation
+    - 2-of-3 logic with illuminance sensor
+    - 2-of-2 logic without illuminance sensor
+    - Lux and temperature hysteresis
+    - Close delay (default 10 min)
+    - Release delay (default 20 min)
+    - Optional indoor temperature
+    - Optional temperature trend
+    - Preventive / comfort mode
+    - Optional window / door contact
+    - Manual/external movement detection
+    - Optional manual pause timer
+    - Optional manual override
+    - Optional external keep-closed condition
+    - Optional day mode helper for coexistence with morning/evening cover automations
+    - Automatic Day Mode synchronization from external cover movements (e.g. Shelly app)
+    - Summer / winter mode
+    - Persistent shading ownership
+    - Self-healing ownership
+    - Optional morning opening
+    - Optional daily movement limit
+    - Detailed debug status
+
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/solar_shading/solar_shading.yaml
+
+  homeassistant:
+    min_version: "2024.6.0"
+
+  input:
+
+    cover_section:
+      name: "Cover"
+      icon: mdi:window-shutter
+      collapsed: false
+      input:
+
+        cover_entity:
+          name: "Cover"
+          selector:
+            entity:
+              filter:
+                - domain: cover
+
+        shading_active_helper:
+          name: "Shading state helper"
+          description: >
+            Required input_boolean. ON means HomeLabNext has lowered this
+            cover for solar shading and therefore owns the automatic release.
+          selector:
+            entity:
+              filter:
+                - domain: input_boolean
+
+        target_position:
+          name: "Shading position"
+          default: 25
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+
+        position_tolerance:
+          name: "Position tolerance"
+          default: 3
+          selector:
+            number:
+              min: 1
+              max: 10
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+
+    orientation_section:
+      name: "Facade orientation"
+      icon: mdi:compass-outline
+      collapsed: false
+      input:
+
+        orientation:
+          name: "Orientation"
+          description: >
+            Presets:
+            East = 60–140°, elevation >= 10°
+            South = 120–240°, elevation >= 15°
+            West = 220–300°, elevation >= 10°
+          default: west
+          selector:
+            select:
+              options:
+                - label: "East"
+                  value: east
+                - label: "South"
+                  value: south
+                - label: "West"
+                  value: west
+
+        custom_solar_position:
+          name: "Use custom solar position"
+          default: false
+          selector:
+            boolean:
+
+        custom_azimuth_start:
+          name: "Custom azimuth start"
+          default: 220
+          selector:
+            number:
+              min: 0
+              max: 360
+              step: 1
+              unit_of_measurement: "°"
+              mode: box
+
+        custom_azimuth_end:
+          name: "Custom azimuth end"
+          default: 300
+          selector:
+            number:
+              min: 0
+              max: 360
+              step: 1
+              unit_of_measurement: "°"
+              mode: box
+
+        custom_minimum_elevation:
+          name: "Custom minimum solar elevation"
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 60
+              step: 1
+              unit_of_measurement: "°"
+              mode: slider
+
+    sensor_section:
+      name: "Solar & temperature sensors"
+      icon: mdi:white-balance-sunny
+      collapsed: false
+      input:
+
+        illuminance_sensor:
+          name: "Illuminance sensor"
+          description: >
+            Optional facade illuminance sensor. If configured, Lux +
+            Outdoor Temperature + Solar Position are evaluated. If omitted,
+            Outdoor Temperature + Solar Position must both be positive.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: illuminance
+
+        outdoor_temperature_sensor:
+          name: "Outdoor temperature sensor"
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: temperature
+
+        lux_close:
+          name: "Lux shading threshold"
+          default: 20000
+          selector:
+            number:
+              min: 1000
+              max: 100000
+              step: 1000
+              unit_of_measurement: "lx"
+              mode: box
+
+        lux_release:
+          name: "Lux release threshold"
+          default: 15000
+          selector:
+            number:
+              min: 1000
+              max: 100000
+              step: 1000
+              unit_of_measurement: "lx"
+              mode: box
+
+        outdoor_temperature_close:
+          name: "Outdoor temperature shading threshold"
+          default: 20
+          selector:
+            number:
+              min: 10
+              max: 35
+              step: 0.5
+              unit_of_measurement: "°C"
+
+        outdoor_temperature_release:
+          name: "Outdoor temperature release threshold"
+          default: 18
+          selector:
+            number:
+              min: 5
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+
+    room_section:
+      name: "Room temperature"
+      icon: mdi:home-thermometer
+      collapsed: true
+      input:
+
+        thermal_mode:
+          name: "Thermal mode"
+          description: >
+            Preventive shades before the room heats up. Comfort additionally
+            requires room temperature or temperature trend to justify shading.
+          default: preventive
+          selector:
+            select:
+              options:
+                - label: "Preventive"
+                  value: preventive
+                - label: "Comfort"
+                  value: comfort
+
+        indoor_temperature_sensor:
+          name: "Indoor temperature sensor"
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: temperature
+
+        indoor_temperature_close:
+          name: "Indoor temperature shading threshold"
+          default: 23
+          selector:
+            number:
+              min: 15
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+
+        indoor_temperature_release:
+          name: "Indoor temperature release threshold"
+          default: 22
+          selector:
+            number:
+              min: 15
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+
+    trend_section:
+      name: "Temperature trend"
+      icon: mdi:chart-line
+      collapsed: true
+      input:
+
+        temperature_trend_sensor:
+          name: "Temperature trend sensor"
+          description: "Optional numeric sensor, preferably in °C/h."
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+
+        temperature_trend_threshold:
+          name: "Temperature trend threshold"
+          default: 1.0
+          selector:
+            number:
+              min: 0.1
+              max: 5
+              step: 0.1
+              unit_of_measurement: "°C/h"
+              mode: box
+
+    season_section:
+      name: "Summer / Winter"
+      icon: mdi:sun-snowflake-variant
+      collapsed: true
+      input:
+
+        season_mode:
+          name: "Season mode"
+          description: >
+            Summer enables heat protection. Winter disables thermal shading
+            so solar gains can help heat the building. External helper uses
+            an input_boolean.
+          default: summer
+          selector:
+            select:
+              options:
+                - label: "Summer"
+                  value: summer
+                - label: "Winter"
+                  value: winter
+                - label: "External helper"
+                  value: helper
+
+        summer_mode_helper:
+          name: "Summer mode helper"
+          description: "Optional input_boolean. ON = Summer, OFF = Winter."
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_boolean
+
+    protection_section:
+      name: "Protection & manual control"
+      icon: mdi:shield-home
+      collapsed: true
+      input:
+
+        window_contact:
+          name: "Window / door contact"
+          description: >
+            Optional. When open HomeLabNext will not lower the cover.
+            Opening the window later does not automatically raise it.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+
+        manual_override:
+          name: "Manual override"
+          description: >
+            Optional input_boolean. While ON, HomeLabNext does not move
+            this cover.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_boolean
+
+        manual_pause_timer:
+          name: "Manual pause timer"
+          description: >
+            Optional timer started when HomeLabNext detects manual or
+            external cover movement.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: timer
+
+        manual_pause_minutes:
+          name: "Manual pause duration"
+          default: 120
+          selector:
+            number:
+              min: 5
+              max: 720
+              step: 5
+              unit_of_measurement: "min"
+              mode: box
+
+        movement_grace_seconds:
+          name: "Own movement grace period"
+          default: 90
+          selector:
+            number:
+              min: 30
+              max: 300
+              step: 10
+              unit_of_measurement: "s"
+
+    hold_section:
+      name: "Keep closed condition"
+      icon: mdi:television
+      collapsed: true
+      input:
+
+        external_hold_entity:
+          name: "External keep-closed entity"
+          description: >
+            Optional input_boolean or binary_sensor. While ON the cover will
+            not automatically open after solar shading is released.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_boolean
+                - domain: binary_sensor
+
+
+    day_mode_section:
+      name: "Day mode"
+      icon: mdi:weather-sunset-up
+      collapsed: true
+      input:
+
+        day_mode_helper:
+          name: "Day mode helper"
+          description: >
+            Optional input_boolean used to coordinate this blueprint with an
+            existing morning/evening cover automation.
+
+            Recommended behavior:
+            - Morning automation opens the cover first, then turns this helper ON.
+            - Evening automation turns this helper OFF first, then closes the cover.
+
+            When configured and OFF, solar shading is disabled and cover movements
+            are ignored by the manual movement detector.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_boolean
+
+        automatic_day_mode_sync:
+          name: "Automatically synchronize Day Mode"
+          description: >
+            Recommended when the normal morning/evening cover schedule runs
+            outside Home Assistant, for example in the Shelly app.
+
+            Day Mode turns ON when the cover is almost fully open while the sun
+            is above the horizon. Day Mode turns OFF when the cover is almost
+            fully closed while the sun is below the horizon.
+
+            The sun state prevents a manual full close during the day from being
+            interpreted as night.
+          default: false
+          selector:
+            boolean:
+
+        day_mode_open_threshold:
+          name: "Day Mode open threshold"
+          description: "Position considered fully open for automatic Day Mode."
+          default: 95
+          selector:
+            number:
+              min: 80
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+
+        day_mode_closed_threshold:
+          name: "Day Mode closed threshold"
+          description: "Position considered fully closed for automatic Day Mode."
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 20
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+
+    timing_section:
+      name: "Timing"
+      icon: mdi:timer-outline
+      collapsed: false
+      input:
+
+        close_delay_minutes:
+          name: "Close delay"
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 60
+              step: 1
+              unit_of_measurement: "min"
+
+        release_delay_minutes:
+          name: "Release delay"
+          default: 20
+          selector:
+            number:
+              min: 0
+              max: 120
+              step: 1
+              unit_of_measurement: "min"
+
+        cooldown_minutes:
+          name: "Movement cooldown"
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 180
+              step: 5
+              unit_of_measurement: "min"
+
+    morning_section:
+      name: "Morning opening"
+      icon: mdi:weather-sunset-up
+      collapsed: true
+      input:
+
+        morning_open_enabled:
+          name: "Enable morning opening"
+          default: false
+          selector:
+            boolean:
+
+        morning_open_time:
+          name: "Morning opening time"
+          default: "08:00:00"
+          selector:
+            time:
+
+    movement_section:
+      name: "Daily movement limit"
+      icon: mdi:counter
+      collapsed: true
+      input:
+
+        daily_limit_enabled:
+          name: "Enable daily movement limit"
+          default: false
+          selector:
+            boolean:
+
+        daily_move_counter:
+          name: "Daily movement counter"
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: counter
+
+        maximum_daily_moves:
+          name: "Maximum movements per day"
+          default: 6
+          selector:
+            number:
+              min: 1
+              max: 30
+              step: 1
+
+    debug_section:
+      name: "Debugging"
+      icon: mdi:bug-outline
+      collapsed: false
+      input:
+
+        debug_status_helper:
+          name: "Debug status helper"
+          description: "Optional input_text helper. Set max length to 255."
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_text
+
+        system_log_debug:
+          name: "Write detailed debug information to system log"
+          default: false
+          selector:
+            boolean:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  cover_entity: !input cover_entity
+  shading_active_helper: !input shading_active_helper
+
+  orientation: !input orientation
+  custom_solar_position: !input custom_solar_position
+  custom_azimuth_start: !input custom_azimuth_start
+  custom_azimuth_end: !input custom_azimuth_end
+  custom_minimum_elevation: !input custom_minimum_elevation
+
+  illuminance_sensor: !input illuminance_sensor
+  outdoor_temperature_sensor: !input outdoor_temperature_sensor
+  indoor_temperature_sensor: !input indoor_temperature_sensor
+  temperature_trend_sensor: !input temperature_trend_sensor
+
+  season_mode: !input season_mode
+  summer_mode_helper: !input summer_mode_helper
+
+  window_contact: !input window_contact
+  manual_override: !input manual_override
+  manual_pause_timer: !input manual_pause_timer
+  external_hold_entity: !input external_hold_entity
+  day_mode_helper: !input day_mode_helper
+  automatic_day_mode_sync: !input automatic_day_mode_sync
+  day_mode_open_threshold: !input day_mode_open_threshold
+  day_mode_closed_threshold: !input day_mode_closed_threshold
+
+  debug_status_helper: !input debug_status_helper
+  system_log_debug: !input system_log_debug
+
+  daily_limit_enabled: !input daily_limit_enabled
+  daily_move_counter: !input daily_move_counter
+  maximum_daily_moves: !input maximum_daily_moves
+
+  morning_open_enabled: !input morning_open_enabled
+
+  target_position: !input target_position
+  position_tolerance: !input position_tolerance
+
+  lux_close: !input lux_close
+  lux_release: !input lux_release
+  outdoor_temperature_close: !input outdoor_temperature_close
+  outdoor_temperature_release: !input outdoor_temperature_release
+
+  thermal_mode: !input thermal_mode
+  indoor_temperature_close: !input indoor_temperature_close
+  indoor_temperature_release: !input indoor_temperature_release
+  temperature_trend_threshold: !input temperature_trend_threshold
+
+  close_delay_minutes: !input close_delay_minutes
+  release_delay_minutes: !input release_delay_minutes
+  cooldown_minutes: !input cooldown_minutes
+  manual_pause_minutes: !input manual_pause_minutes
+  movement_grace_seconds: !input movement_grace_seconds
+
+  effective_azimuth_start: >
+    {% if custom_solar_position | bool %}
+      {{ custom_azimuth_start | float }}
+    {% elif orientation == 'east' %}
+      60
+    {% elif orientation == 'south' %}
+      120
+    {% else %}
+      220
+    {% endif %}
+
+  effective_azimuth_end: >
+    {% if custom_solar_position | bool %}
+      {{ custom_azimuth_end | float }}
+    {% elif orientation == 'east' %}
+      140
+    {% elif orientation == 'south' %}
+      240
+    {% else %}
+      300
+    {% endif %}
+
+  effective_minimum_elevation: >
+    {% if custom_solar_position | bool %}
+      {{ custom_minimum_elevation | float }}
+    {% elif orientation == 'south' %}
+      15
+    {% else %}
+      10
+    {% endif %}
+
+triggers:
+  - trigger: state
+    entity_id: !input outdoor_temperature_sensor
+    id: sensor_change
+
+  - trigger: state
+    entity_id: sun.sun
+    id: sun_change
+
+  - trigger: state
+    entity_id: !input cover_entity
+    id: cover_change
+
+
+  - trigger: state
+    entity_id: !input day_mode_helper
+    id: day_mode_change
+
+  - trigger: time_pattern
+    minutes: "/2"
+    id: periodic
+
+  - trigger: time
+    at: "00:00:00"
+    id: midnight
+
+  - trigger: time
+    at: !input morning_open_time
+    id: morning
+
+  - trigger: homeassistant
+    event: start
+    id: startup
+
+actions:
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                trigger.id == 'midnight'
+                and daily_limit_enabled | bool
+                and daily_move_counter != ''
+              }}
+        sequence:
+          - action: counter.reset
+            target:
+              entity_id: "{{ daily_move_counter }}"
+          - stop: "Daily movement counter reset."
+
+  - variables:
+
+      current_position: >
+        {{ state_attr(cover_entity, 'current_position') | int(-1) }}
+
+      cover_available: >
+        {{ states(cover_entity) not in ['unknown', 'unavailable'] }}
+
+      cover_moving: >
+        {{ states(cover_entity) in ['opening', 'closing'] }}
+
+      lux_configured: >
+        {{ illuminance_sensor != '' }}
+
+      lux_valid: >
+        {{ illuminance_sensor != '' and has_value(illuminance_sensor) }}
+
+      outdoor_valid: >
+        {{ has_value(outdoor_temperature_sensor) }}
+
+      sun_valid: >
+        {{
+          has_value('sun.sun')
+          and state_attr('sun.sun', 'azimuth') is not none
+          and state_attr('sun.sun', 'elevation') is not none
+        }}
+
+      lux: >
+        {{
+          states(illuminance_sensor) | float(-1)
+          if illuminance_sensor != ''
+          else -1
+        }}
+
+      outdoor_temp: >
+        {{ states(outdoor_temperature_sensor) | float(-99) }}
+
+      azimuth: >
+        {{ state_attr('sun.sun', 'azimuth') | float(-1) }}
+
+      elevation: >
+        {{ state_attr('sun.sun', 'elevation') | float(-90) }}
+
+      lux_close_positive: >
+        {{ lux_valid and (lux | float) >= (lux_close | float) }}
+
+      outdoor_close_positive: >
+        {{
+          outdoor_valid
+          and (outdoor_temp | float) >= (outdoor_temperature_close | float)
+        }}
+
+      sun_close_positive: >
+        {{
+          sun_valid
+          and (azimuth | float) >= (effective_azimuth_start | float)
+          and (azimuth | float) <= (effective_azimuth_end | float)
+          and (elevation | float) >= (effective_minimum_elevation | float)
+        }}
+
+      valid_close_count: >
+        {{
+          (1 if lux_valid else 0)
+          + (1 if outdoor_valid else 0)
+          + (1 if sun_valid else 0)
+        }}
+
+      positive_close_count: >
+        {{
+          (1 if lux_close_positive else 0)
+          + (1 if outdoor_close_positive else 0)
+          + (1 if sun_close_positive else 0)
+        }}
+
+      lux_release_positive: >
+        {{ lux_valid and (lux | float) < (lux_release | float) }}
+
+      outdoor_release_positive: >
+        {{
+          outdoor_valid
+          and (outdoor_temp | float) < (outdoor_temperature_release | float)
+        }}
+
+      sun_release_positive: >
+        {{
+          sun_valid
+          and not (
+            (azimuth | float) >= (effective_azimuth_start | float)
+            and (azimuth | float) <= (effective_azimuth_end | float)
+            and (elevation | float) >= (effective_minimum_elevation | float)
+          )
+        }}
+
+      valid_release_count: >
+        {{
+          (1 if lux_valid else 0)
+          + (1 if outdoor_valid else 0)
+          + (1 if sun_valid else 0)
+        }}
+
+      positive_release_count: >
+        {{
+          (1 if lux_release_positive else 0)
+          + (1 if outdoor_release_positive else 0)
+          + (1 if sun_release_positive else 0)
+        }}
+
+      primary_close_requested: >
+        {% if lux_configured %}
+          {{
+            (valid_close_count | int) >= 2
+            and (positive_close_count | int) >= 2
+          }}
+        {% else %}
+          {{
+            outdoor_valid
+            and sun_valid
+            and outdoor_close_positive
+            and sun_close_positive
+          }}
+        {% endif %}
+
+      primary_release_requested: >
+        {% if lux_configured %}
+          {{
+            (valid_release_count | int) >= 2
+            and (positive_release_count | int) >= 2
+          }}
+        {% else %}
+          {{
+            outdoor_valid
+            and sun_valid
+            and (outdoor_release_positive or sun_release_positive)
+          }}
+        {% endif %}
+
+      summer_active: >
+        {{
+          season_mode == 'summer'
+          or (
+            season_mode == 'helper'
+            and summer_mode_helper != ''
+            and is_state(summer_mode_helper, 'on')
+          )
+        }}
+
+      indoor_valid: >
+        {{
+          indoor_temperature_sensor != ''
+          and has_value(indoor_temperature_sensor)
+        }}
+
+      indoor_temp: >
+        {{
+          states(indoor_temperature_sensor) | float(-99)
+          if indoor_temperature_sensor != ''
+          else -99
+        }}
+
+      trend_valid: >
+        {{
+          temperature_trend_sensor != ''
+          and has_value(temperature_trend_sensor)
+        }}
+
+      temperature_trend: >
+        {{
+          states(temperature_trend_sensor) | float(-99)
+          if temperature_trend_sensor != ''
+          else -99
+        }}
+
+      trend_positive: >
+        {{
+          trend_valid
+          and (temperature_trend | float) >= (temperature_trend_threshold | float)
+        }}
+
+      room_allows_close: >
+        {{
+          thermal_mode == 'preventive'
+          or (
+            thermal_mode == 'comfort'
+            and (
+              (
+                indoor_valid
+                and (indoor_temp | float) >= (indoor_temperature_close | float)
+              )
+              or trend_positive
+            )
+          )
+        }}
+
+      room_requests_release: >
+        {{
+          thermal_mode == 'comfort'
+          and indoor_valid
+          and (indoor_temp | float) < (indoor_temperature_release | float)
+        }}
+
+      window_open: >
+        {{ window_contact != '' and is_state(window_contact, 'on') }}
+
+      manual_override_active: >
+        {{ manual_override != '' and is_state(manual_override, 'on') }}
+
+      manual_pause_active: >
+        {{ manual_pause_timer != '' and is_state(manual_pause_timer, 'active') }}
+
+      external_hold_active: >
+        {{ external_hold_entity != '' and is_state(external_hold_entity, 'on') }}
+
+      day_mode_helper_state: >
+        {{
+          states(day_mode_helper)
+          if day_mode_helper != ''
+          else 'not_configured'
+        }}
+
+      day_mode_active: >
+        {{
+          day_mode_helper == ''
+          or is_state(day_mode_helper, 'on')
+        }}
+
+      sun_above_horizon: >
+        {{ is_state('sun.sun', 'above_horizon') }}
+
+      sun_below_horizon: >
+        {{ is_state('sun.sun', 'below_horizon') }}
+
+      automatic_day_mode_available: >
+        {{
+          automatic_day_mode_sync | bool
+          and day_mode_helper != ''
+          and current_position >= 0
+        }}
+
+      shading_active: >
+        {{ is_state(shading_active_helper, 'on') }}
+
+      cooldown_ok: >
+        {{
+          (
+            as_timestamp(now())
+            - as_timestamp(states[shading_active_helper].last_changed)
+          )
+          >= ((cooldown_minutes | float) * 60)
+        }}
+
+      movement_limit_reached: >
+        {{
+          daily_limit_enabled | bool
+          and daily_move_counter != ''
+          and (states(daily_move_counter) | int(0)) >= (maximum_daily_moves | int)
+        }}
+
+      close_requested: >
+        {{
+          day_mode_active
+          and summer_active
+          and primary_close_requested
+          and room_allows_close
+        }}
+
+      release_requested: >
+        {{
+          not summer_active
+          or primary_release_requested
+          or room_requests_release
+        }}
+
+      debug_reason: >
+        {% if not cover_available %}
+          BLOCKED | Cover unavailable
+        {% elif cover_moving %}
+          MOVING | {{ states(cover_entity) }}
+        {% elif manual_override_active %}
+          BLOCKED | Manual override
+        {% elif manual_pause_active %}
+          MANUAL PAUSE | active
+        {% elif not day_mode_active %}
+          DAY OFF |
+          Helper={{ day_mode_helper_state }} |
+          Auto={{ 'ON' if automatic_day_mode_sync else 'OFF' }} |
+          Pos={{ current_position }} |
+          Sun={{ 'DAY' if sun_above_horizon else 'NIGHT' }}
+        {% elif movement_limit_reached %}
+          BLOCKED | Daily movement limit
+        {% elif window_open and not shading_active %}
+          BLOCKED CLOSE | Window/door open
+        {% elif not summer_active and not shading_active %}
+          WINTER | Heat protection disabled
+        {% elif close_requested %}
+          CLOSE READY |
+          {{ orientation | upper }} |
+          Day={{ 'ON' if day_mode_active else 'OFF' }} |
+          Lux={{ lux|round(0) }}
+          {{ '✓' if lux_close_positive else '✗' if lux_configured else 'N/A' }} |
+          Out={{ outdoor_temp|round(1) }}
+          {{ '✓' if outdoor_close_positive else '✗' }} |
+          Sun={{ '✓' if sun_close_positive else '✗' }} |
+          Az={{ azimuth|round(1) }}
+          [{{ effective_azimuth_start }}-{{ effective_azimuth_end }}] |
+          El={{ elevation|round(1) }}
+          [>{{ effective_minimum_elevation }}] |
+          Room={{ '✓' if room_allows_close else '✗' }}
+        {% elif shading_active and release_requested %}
+          RELEASE READY |
+          Lux={{ lux|round(0) }} |
+          Out={{ outdoor_temp|round(1) }} |
+          Az={{ azimuth|round(1) }} |
+          El={{ elevation|round(1) }} |
+          Hold={{ 'ON' if external_hold_active else 'OFF' }}
+        {% elif shading_active %}
+          SHADING |
+          {{ orientation | upper }} |
+          Day={{ 'ON' if day_mode_active else 'OFF' }} |
+          Pos={{ current_position }}%
+        {% else %}
+          IDLE |
+          {{ orientation | upper }} |
+          Day={{ 'ON' if day_mode_active else 'OFF' }} |
+          Lux={{ lux|round(0) }}
+          {{ '✓' if lux_close_positive else '✗' if lux_configured else 'N/A' }} |
+          Out={{ outdoor_temp|round(1) }}
+          {{ '✓' if outdoor_close_positive else '✗' }} |
+          Sun={{ '✓' if sun_close_positive else '✗' }} |
+          Az={{ azimuth|round(1) }} |
+          El={{ elevation|round(1) }} |
+          Room={{ '✓' if room_allows_close else '✗' }}
+        {% endif %}
+
+
+  # Synchronize Day Mode from externally controlled cover movements.
+  # This allows schedules in systems such as the Shelly app to hand over
+  # control to HomeLabNext without calling a Home Assistant service directly.
+  - choose:
+      - alias: "Automatic Day Mode ON"
+        conditions:
+          - condition: template
+            value_template: >
+              {{
+                automatic_day_mode_available
+                and sun_above_horizon
+                and current_position >= (day_mode_open_threshold | int)
+                and not is_state(day_mode_helper, 'on')
+              }}
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: "{{ day_mode_helper }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                sequence:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: >
+                        DAY ON |
+                        Helper=on |
+                        Auto=ON |
+                        Pos={{ current_position }} |
+                        Sun=DAY
+
+          - stop: "Day Mode enabled from external morning opening."
+
+      - alias: "Automatic Day Mode OFF"
+        conditions:
+          - condition: template
+            value_template: >
+              {{
+                automatic_day_mode_available
+                and sun_below_horizon
+                and current_position <= (day_mode_closed_threshold | int)
+                and is_state(day_mode_helper, 'on')
+              }}
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: "{{ day_mode_helper }}"
+
+          - action: input_boolean.turn_off
+            target:
+              entity_id: "{{ shading_active_helper }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                sequence:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: >
+                        DAY OFF |
+                        Helper=off |
+                        Auto=ON |
+                        Pos={{ current_position }} |
+                        Sun=NIGHT
+
+          - stop: "Day Mode disabled from external evening closing."
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ debug_status_helper != '' }}"
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "{{ debug_reason | trim | truncate(255, true, '') }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ system_log_debug | bool }}"
+        sequence:
+          - action: system_log.write
+            data:
+              level: info
+              message: >
+                HomeLabNext Solar Shading |
+                {{ cover_entity }} |
+                {{ debug_reason | trim }}
+
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                not day_mode_active
+                and shading_active
+                and not cover_moving
+              }}
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: "{{ shading_active_helper }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                sequence:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: >
+                        DAY OFF |
+                        Helper={{ states(day_mode_helper) if day_mode_helper != '' else 'not_configured' }} |
+                        Ownership released
+
+          - stop: "Day mode disabled. Solar shading ownership released."
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                trigger.id == 'morning'
+                and morning_open_enabled | bool
+                and cover_available
+                and not cover_moving
+                and not manual_override_active
+                and not manual_pause_active
+                and not external_hold_active
+                and not movement_limit_reached
+              }}
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: "{{ shading_active_helper }}"
+
+          - action: cover.open_cover
+            target:
+              entity_id: "{{ cover_entity }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{
+                        daily_limit_enabled | bool
+                        and daily_move_counter != ''
+                      }}
+                sequence:
+                  - action: counter.increment
+                    target:
+                      entity_id: "{{ daily_move_counter }}"
+
+          - stop: "Morning opening complete."
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                trigger.id == 'cover_change'
+                and day_mode_active
+                and shading_active
+                and not cover_moving
+                and current_position >= 0
+              }}
+          - condition: template
+            value_template: >
+              {{
+                (
+                  as_timestamp(now())
+                  - as_timestamp(states[shading_active_helper].last_changed)
+                )
+                > (movement_grace_seconds | int)
+              }}
+          - condition: template
+            value_template: >
+              {{
+                (
+                  current_position - (target_position | int)
+                ) | abs > (position_tolerance | int)
+              }}
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: "{{ shading_active_helper }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ manual_pause_timer != '' }}"
+                sequence:
+                  - action: timer.start
+                    target:
+                      entity_id: "{{ manual_pause_timer }}"
+                    data:
+                      duration: >
+                        {% set sec = (manual_pause_minutes | int) * 60 %}
+                        {{ '%02d:%02d:%02d' | format(
+                          sec // 3600,
+                          (sec % 3600) // 60,
+                          sec % 60
+                        ) }}
+
+          - stop: "Manual/external movement detected."
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                shading_active
+                and not cover_moving
+                and current_position >= 0
+                and (
+                  current_position - (target_position | int)
+                ) | abs > (position_tolerance | int)
+                and (
+                  as_timestamp(now())
+                  - as_timestamp(states[shading_active_helper].last_changed)
+                ) > (movement_grace_seconds | int)
+              }}
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: "{{ shading_active_helper }}"
+          - stop: "Stale shading ownership cleared."
+
+  - choose:
+
+      - alias: "Start solar shading"
+        conditions:
+          - condition: template
+            value_template: "{{ close_requested }}"
+          - condition: template
+            value_template: >
+              {{
+                day_mode_active
+                and cover_available
+                and not cover_moving
+                and not window_open
+                and not manual_override_active
+                and not manual_pause_active
+                and not movement_limit_reached
+                and cooldown_ok
+                and not shading_active
+                and current_position > (target_position | int)
+              }}
+        sequence:
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                sequence:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: >
+                        WAIT CLOSE |
+                        {{ close_delay_minutes }} min |
+                        {{ orientation | upper }}
+
+          - delay:
+              minutes: "{{ close_delay_minutes | int }}"
+
+          - variables:
+
+              re_lux_valid: >
+                {{
+                  illuminance_sensor != ''
+                  and has_value(illuminance_sensor)
+                }}
+
+              re_out_valid: >
+                {{ has_value(outdoor_temperature_sensor) }}
+
+              re_sun_valid: >
+                {{
+                  has_value('sun.sun')
+                  and state_attr('sun.sun', 'azimuth') is not none
+                  and state_attr('sun.sun', 'elevation') is not none
+                }}
+
+              re_lux_positive: >
+                {{
+                  re_lux_valid
+                  and (states(illuminance_sensor) | float(-1))
+                  >= (lux_close | float)
+                }}
+
+              re_out_positive: >
+                {{
+                  re_out_valid
+                  and (states(outdoor_temperature_sensor) | float(-99))
+                  >= (outdoor_temperature_close | float)
+                }}
+
+              re_sun_positive: >
+                {{
+                  re_sun_valid
+                  and (state_attr('sun.sun','azimuth') | float(-1))
+                  >= (effective_azimuth_start | float)
+                  and (state_attr('sun.sun','azimuth') | float(-1))
+                  <= (effective_azimuth_end | float)
+                  and (state_attr('sun.sun','elevation') | float(-90))
+                  >= (effective_minimum_elevation | float)
+                }}
+
+              re_close_primary: >
+                {% if illuminance_sensor != '' %}
+                  {{
+                    (
+                      (1 if re_lux_valid else 0)
+                      + (1 if re_out_valid else 0)
+                      + (1 if re_sun_valid else 0)
+                    ) >= 2
+                    and
+                    (
+                      (1 if re_lux_positive else 0)
+                      + (1 if re_out_positive else 0)
+                      + (1 if re_sun_positive else 0)
+                    ) >= 2
+                  }}
+                {% else %}
+                  {{
+                    re_out_valid
+                    and re_sun_valid
+                    and re_out_positive
+                    and re_sun_positive
+                  }}
+                {% endif %}
+
+              re_room_ok: >
+                {{
+                  thermal_mode == 'preventive'
+                  or (
+                    thermal_mode == 'comfort'
+                    and (
+                      (
+                        indoor_temperature_sensor != ''
+                        and has_value(indoor_temperature_sensor)
+                        and (states(indoor_temperature_sensor) | float(-99))
+                        >= (indoor_temperature_close | float)
+                      )
+                      or (
+                        temperature_trend_sensor != ''
+                        and has_value(temperature_trend_sensor)
+                        and (states(temperature_trend_sensor) | float(-99))
+                        >= (temperature_trend_threshold | float)
+                      )
+                    )
+                  )
+                }}
+
+          - condition: template
+            value_template: >
+              {{
+                (
+                  day_mode_helper == ''
+                  or is_state(day_mode_helper, 'on')
+                )
+                and summer_active
+                and re_close_primary
+                and re_room_ok
+                and states(cover_entity)
+                    not in ['unknown','unavailable','opening','closing']
+                and (
+                  window_contact == ''
+                  or not is_state(window_contact,'on')
+                )
+                and (
+                  manual_override == ''
+                  or not is_state(manual_override,'on')
+                )
+                and (
+                  manual_pause_timer == ''
+                  or not is_state(manual_pause_timer,'active')
+                )
+                and (
+                  state_attr(cover_entity, 'current_position') | int(-1)
+                ) > (target_position | int)
+              }}
+
+          - action: input_boolean.turn_on
+            target:
+              entity_id: "{{ shading_active_helper }}"
+
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ cover_entity }}"
+            data:
+              position: "{{ target_position | int }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{
+                        daily_limit_enabled | bool
+                        and daily_move_counter != ''
+                      }}
+                sequence:
+                  - action: counter.increment
+                    target:
+                      entity_id: "{{ daily_move_counter }}"
+
+      - alias: "Release solar shading"
+        conditions:
+          - condition: template
+            value_template: >
+              {{
+                shading_active
+                and release_requested
+                and cover_available
+                and not cover_moving
+                and not manual_override_active
+                and not manual_pause_active
+                and not movement_limit_reached
+                and cooldown_ok
+              }}
+        sequence:
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                sequence:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: >
+                        WAIT RELEASE |
+                        {{ release_delay_minutes }} min
+
+          - delay:
+              minutes: "{{ release_delay_minutes | int }}"
+
+          - variables:
+
+              rel_lux_valid: >
+                {{
+                  illuminance_sensor != ''
+                  and has_value(illuminance_sensor)
+                }}
+
+              rel_out_valid: >
+                {{ has_value(outdoor_temperature_sensor) }}
+
+              rel_sun_valid: >
+                {{
+                  has_value('sun.sun')
+                  and state_attr('sun.sun','azimuth') is not none
+                  and state_attr('sun.sun','elevation') is not none
+                }}
+
+              rel_lux: >
+                {{
+                  states(illuminance_sensor) | float(-1)
+                  if illuminance_sensor != ''
+                  else -1
+                }}
+
+              rel_out: >
+                {{ states(outdoor_temperature_sensor) | float(-99) }}
+
+              rel_az: >
+                {{ state_attr('sun.sun','azimuth') | float(-1) }}
+
+              rel_el: >
+                {{ state_attr('sun.sun','elevation') | float(-90) }}
+
+              rel_lux_positive: >
+                {{
+                  rel_lux_valid
+                  and rel_lux < (lux_release | float)
+                }}
+
+              rel_out_positive: >
+                {{
+                  rel_out_valid
+                  and rel_out < (outdoor_temperature_release | float)
+                }}
+
+              rel_sun_positive: >
+                {{
+                  rel_sun_valid
+                  and not (
+                    rel_az >= (effective_azimuth_start | float)
+                    and rel_az <= (effective_azimuth_end | float)
+                    and rel_el >= (effective_minimum_elevation | float)
+                  )
+                }}
+
+              rel_primary: >
+                {% if illuminance_sensor != '' %}
+                  {{
+                    (
+                      (1 if rel_lux_valid else 0)
+                      + (1 if rel_out_valid else 0)
+                      + (1 if rel_sun_valid else 0)
+                    ) >= 2
+                    and
+                    (
+                      (1 if rel_lux_positive else 0)
+                      + (1 if rel_out_positive else 0)
+                      + (1 if rel_sun_positive else 0)
+                    ) >= 2
+                  }}
+                {% else %}
+                  {{
+                    rel_out_valid
+                    and rel_sun_valid
+                    and (rel_out_positive or rel_sun_positive)
+                  }}
+                {% endif %}
+
+              rel_room: >
+                {{
+                  thermal_mode == 'comfort'
+                  and indoor_temperature_sensor != ''
+                  and has_value(indoor_temperature_sensor)
+                  and (states(indoor_temperature_sensor) | float(-99))
+                  < (indoor_temperature_release | float)
+                }}
+
+              rel_allowed: >
+                {{ not summer_active or rel_primary or rel_room }}
+
+              rel_hold: >
+                {{
+                  external_hold_entity != ''
+                  and is_state(external_hold_entity,'on')
+                }}
+
+              rel_position_ok: >
+                {% set pos =
+                  state_attr(cover_entity, 'current_position') | int(-1)
+                %}
+                {{
+                  pos >= 0
+                  and (
+                    pos - (target_position | int)
+                  ) | abs <= (position_tolerance | int)
+                }}
+
+          - choose:
+
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{
+                        rel_allowed
+                        and not rel_hold
+                        and rel_position_ok
+                        and (
+                          manual_override == ''
+                          or not is_state(manual_override,'on')
+                        )
+                        and (
+                          manual_pause_timer == ''
+                          or not is_state(manual_pause_timer,'active')
+                        )
+                      }}
+                sequence:
+                  - action: cover.open_cover
+                    target:
+                      entity_id: "{{ cover_entity }}"
+
+                  - action: input_boolean.turn_off
+                    target:
+                      entity_id: "{{ shading_active_helper }}"
+
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: >
+                              {{
+                                daily_limit_enabled | bool
+                                and daily_move_counter != ''
+                              }}
+                        sequence:
+                          - action: counter.increment
+                            target:
+                              entity_id: "{{ daily_move_counter }}"
+
+              - conditions:
+                  - condition: template
+                    value_template: "{{ rel_allowed and rel_hold }}"
+                sequence:
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ debug_status_helper != '' }}"
+                        sequence:
+                          - action: input_text.set_value
+                            target:
+                              entity_id: "{{ debug_status_helper }}"
+                            data:
+                              value: >
+                                HOLD CLOSED |
+                                Solar shading released |
+                                another reason is active

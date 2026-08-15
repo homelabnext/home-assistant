@@ -1,0 +1,54 @@
+# HomeLabNext – Adaptive Solar Shading
+# Example helpers
+#
+# Copy/rename one block per cover.
+#
+# Required:
+# - input_boolean shading state
+#
+# Optional:
+# - input_boolean manual override
+# - input_text debug status
+# - timer manual pause
+# - counter daily movement limit
+
+input_boolean:
+
+  # Optional global helper for existing morning/evening cover automations.
+  # ON  = daytime; Adaptive Solar Shading may control covers.
+  # OFF = night / normal closing automation owns the covers.
+  homelabnext_cover_day_mode:
+    name: "HomeLabNext Cover Day Mode"
+    icon: mdi:weather-sunset-up
+
+  homelabnext_shading_example:
+    name: "HomeLabNext Shading – Example"
+    icon: mdi:weather-sunny-alert
+
+  homelabnext_manual_override_example:
+    name: "HomeLabNext Manual Override – Example"
+    icon: mdi:hand-back-right
+
+
+input_text:
+
+  homelabnext_debug_example:
+    name: "HomeLabNext Debug – Example"
+    max: 255
+
+
+timer:
+
+  homelabnext_manual_pause_example:
+    name: "HomeLabNext Manual Pause – Example"
+    duration: "02:00:00"
+    restore: true
+
+
+counter:
+
+  homelabnext_moves_example:
+    name: "HomeLabNext Moves – Example"
+    initial: 0
+    step: 1
+    restore: true

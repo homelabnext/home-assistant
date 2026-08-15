@@ -1,0 +1,799 @@
+blueprint:
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.1
+  description: >-
+    Daily opening and closing control for Home Assistant covers.
+
+    REQUIRED:
+    - One cover entity.
+
+    OPTIONAL:
+    - Day Mode helper (input_boolean): only needed when this cover should hand
+      daytime control over to HomeLabNext Adaptive Solar Shading.
+    - Debug status helper (input_text): shows what the automation is doing.
+    - Manual override (input_boolean): suppresses automatic movement while ON.
+    - Vacation mode (input_boolean): enables the separate vacation schedule.
+    - Window / door contacts (binary_sensor): delay evening closing while open.
+
+    INTEGRATION WITH ADAPTIVE SOLAR SHADING:
+    Use the SAME Day Mode helper in both blueprints for the same cover.
+    Morning & Evening Cover Control turns Day Mode ON after the morning opening
+    and OFF before/when the cover is closed for the night. Adaptive Solar
+    Shading then only controls the cover during the intended daytime phase.
+
+    If you do not use Adaptive Solar Shading for a cover, simply leave the
+    Day Mode helper empty. No Solar Shading helper is required.
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/morning_evening_cover_control/morning_evening_cover_control.yaml
+  input:
+    cover_entity:
+      name: Cover
+      description: Cover controlled by this automation.
+      selector:
+        entity:
+          filter:
+            domain: cover
+
+    day_mode_helper:
+      name: Day Mode helper
+      description: >-
+        Optional. Only configure this when the same cover also uses
+        HomeLabNext Adaptive Solar Shading. Select the SAME input_boolean in
+        both blueprints. Leave empty for covers without solar shading.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    debug_status_helper:
+      name: Debug status helper
+      description: >-
+        Optional input_text for readable status/debug messages. Leave empty if
+        you do not need a dashboard/debug entity.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_text
+
+    manual_override:
+      name: Manual override
+      description: >-
+        Optional input_boolean. While ON, automatic cover movement is
+        suppressed. Leave empty if you do not need a manual lockout.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    vacation_mode:
+      name: Vacation mode
+      description: >-
+        Optional input_boolean. When ON, the separately configurable vacation
+        schedule is used. Leave empty if you do not need vacation mode.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    window_contacts:
+      name: Window / door contacts
+      description: >-
+        Optional contacts for evening ventilation. Closing is delayed while
+        at least one selected contact is open. Leave empty when not needed.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: binary_sensor
+
+    enable_morning:
+      name: Enable morning opening
+      default: true
+      selector:
+        boolean:
+
+    morning_mode:
+      name: Morning mode
+      default: sun_not_before
+      selector:
+        select:
+          options:
+            - label: Sunrise with offset
+              value: sun
+            - label: Fixed time
+              value: time
+            - label: Sunrise with offset, but not before configured time
+              value: sun_not_before
+
+    sunrise_offset:
+      name: Sunrise offset
+      description: HH:MM:SS. Negative values are before sunrise.
+      default: "00:15:00"
+      selector:
+        text:
+
+    weekday_morning_time:
+      name: Morning time / not before – Monday to Friday
+      default: "07:00:00"
+      selector:
+        time:
+
+    weekend_morning_time:
+      name: Morning time / not before – Saturday and Sunday
+      default: "08:30:00"
+      selector:
+        time:
+
+    enable_evening:
+      name: Enable evening closing
+      default: true
+      selector:
+        boolean:
+
+    evening_mode:
+      name: Evening mode
+      default: sun_not_after
+      selector:
+        select:
+          options:
+            - label: Sunset with offset
+              value: sun
+            - label: Fixed time
+              value: time
+            - label: Sunset with offset, but not after configured time
+              value: sun_not_after
+
+    sunset_offset:
+      name: Sunset offset
+      description: HH:MM:SS. Negative values are before sunset.
+      default: "00:15:00"
+      selector:
+        text:
+
+    weekday_evening_time:
+      name: Evening time / not after – Monday to Friday
+      default: "22:30:00"
+      selector:
+        time:
+
+    weekend_evening_time:
+      name: Evening time / not after – Saturday and Sunday
+      default: "22:30:00"
+      selector:
+        time:
+
+    vacation_morning_time:
+      name: Vacation morning time
+      default: "08:30:00"
+      selector:
+        time:
+
+    vacation_evening_time:
+      name: Vacation evening time
+      default: "21:30:00"
+      selector:
+        time:
+
+    open_position:
+      name: Morning open position
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    close_position:
+      name: Evening close position
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 99
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  cover_entity: !input cover_entity
+  day_mode_helper: !input day_mode_helper
+  debug_status_helper: !input debug_status_helper
+  manual_override: !input manual_override
+  vacation_mode: !input vacation_mode
+  window_contacts: !input window_contacts
+  enable_morning: !input enable_morning
+  morning_mode: !input morning_mode
+  sunrise_offset: !input sunrise_offset
+  weekday_morning_time: !input weekday_morning_time
+  weekend_morning_time: !input weekend_morning_time
+  enable_evening: !input enable_evening
+  evening_mode: !input evening_mode
+  sunset_offset: !input sunset_offset
+  weekday_evening_time: !input weekday_evening_time
+  weekend_evening_time: !input weekend_evening_time
+  vacation_morning_time: !input vacation_morning_time
+  vacation_evening_time: !input vacation_evening_time
+  open_position: !input open_position
+  close_position: !input close_position
+  is_weekend: "{{ now().weekday() in [5, 6] }}"
+  selected_morning_time: >-
+    {{ weekend_morning_time if is_weekend else weekday_morning_time }}
+  selected_evening_time: >-
+    {{ weekend_evening_time if is_weekend else weekday_evening_time }}
+  vacation_active: "{{ vacation_mode != '' and is_state(vacation_mode, 'on') }}"
+  override_active: "{{ manual_override != '' and is_state(manual_override, 'on') }}"
+  any_window_open: >-
+    {{ expand(window_contacts) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+
+triggers:
+  - trigger: sun
+    event: sunrise
+    offset: !input sunrise_offset
+    id: sunrise
+
+  - trigger: sun
+    event: sunset
+    offset: !input sunset_offset
+    id: sunset
+
+  - trigger: time
+    at: !input weekday_morning_time
+    id: weekday_morning
+
+  - trigger: time
+    at: !input weekend_morning_time
+    id: weekend_morning
+
+  - trigger: time
+    at: !input weekday_evening_time
+    id: weekday_evening
+
+  - trigger: time
+    at: !input weekend_evening_time
+    id: weekend_evening
+
+  - trigger: time
+    at: !input vacation_morning_time
+    id: vacation_morning
+
+  - trigger: time
+    at: !input vacation_evening_time
+    id: vacation_evening
+
+  - trigger: state
+    entity_id: !input window_contacts
+    to: "off"
+    id: window_closed
+
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+actions:
+  - if:
+      - condition: trigger
+        id: ha_start
+    then:
+      - delay: "00:00:30"
+
+  - variables:
+      is_weekend_now: "{{ now().weekday() in [5, 6] }}"
+      morning_time_now: >-
+        {{ weekend_morning_time if now().weekday() in [5, 6] else weekday_morning_time }}
+      evening_time_now: >-
+        {{ weekend_evening_time if now().weekday() in [5, 6] else weekday_evening_time }}
+      vacation_active_now: "{{ vacation_mode != '' and is_state(vacation_mode, 'on') }}"
+      override_active_now: "{{ manual_override != '' and is_state(manual_override, 'on') }}"
+      windows_open_now: >-
+        {{ expand(window_contacts) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+      after_morning_time: "{{ now().strftime('%H:%M:%S') >= morning_time_now }}"
+      after_evening_time: "{{ now().strftime('%H:%M:%S') >= evening_time_now }}"
+      after_vacation_morning: "{{ now().strftime('%H:%M:%S') >= vacation_morning_time }}"
+      after_vacation_evening: "{{ now().strftime('%H:%M:%S') >= vacation_evening_time }}"
+
+  - choose:
+      # Manual override: never move a cover automatically.
+      - conditions:
+          - condition: template
+            value_template: "{{ override_active_now }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "Manual override – automatic movement suppressed"
+
+      # Vacation morning: fixed vacation schedule.
+      - conditions:
+          - condition: template
+            value_template: "{{ vacation_active_now and enable_morning }}"
+          - condition: trigger
+            id:
+              - vacation_morning
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: !input open_position
+          - if:
+              - condition: template
+                value_template: "{{ day_mode_helper != '' }}"
+            then:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: "{{ day_mode_helper }}"
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "Vacation – opened for day"
+
+      # Vacation evening: wait for all selected windows to be closed.
+      - conditions:
+          - condition: template
+            value_template: "{{ vacation_active_now and enable_evening }}"
+          - condition: trigger
+            id:
+              - vacation_evening
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ windows_open_now }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Vacation – window open, closing delayed"
+            else:
+              - if:
+                  - condition: template
+                    value_template: "{{ day_mode_helper != '' }}"
+                then:
+                  - action: input_boolean.turn_off
+                    target:
+                      entity_id: "{{ day_mode_helper }}"
+              - action: cover.set_cover_position
+                target:
+                  entity_id: !input cover_entity
+                data:
+                  position: !input close_position
+              - if:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Vacation – closed for night"
+
+      # Normal sunrise-based opening.
+      - conditions:
+          - condition: template
+            value_template: "{{ not vacation_active_now and enable_morning }}"
+          - condition: trigger
+            id: sunrise
+          - condition: template
+            value_template: >-
+              {{ morning_mode == 'sun' or
+                 (morning_mode == 'sun_not_before' and
+                  now().strftime('%H:%M:%S') >= morning_time_now) }}
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: !input open_position
+          - if:
+              - condition: template
+                value_template: "{{ day_mode_helper != '' }}"
+            then:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: "{{ day_mode_helper }}"
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "Day mode – opened after sunrise"
+
+      # Normal fixed/not-before morning boundary.
+      - conditions:
+          - condition: template
+            value_template: "{{ not vacation_active_now and enable_morning }}"
+          - condition: or
+            conditions:
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: weekday_morning
+                  - condition: template
+                    value_template: "{{ now().weekday() in [0,1,2,3,4] }}"
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: weekend_morning
+                  - condition: template
+                    value_template: "{{ now().weekday() in [5,6] }}"
+          - condition: template
+            value_template: >-
+              {{ morning_mode == 'time' or
+                 (morning_mode == 'sun_not_before' and is_state('sun.sun', 'above_horizon')) }}
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: !input open_position
+          - if:
+              - condition: template
+                value_template: "{{ day_mode_helper != '' }}"
+            then:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: "{{ day_mode_helper }}"
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "Day mode – opened at morning boundary"
+
+      # Normal sunset-based closing. In sun_not_after mode this closes at sunset
+      # unless the configured maximum time has already closed it first.
+      - conditions:
+          - condition: template
+            value_template: "{{ not vacation_active_now and enable_evening }}"
+          - condition: trigger
+            id: sunset
+          - condition: template
+            value_template: "{{ evening_mode in ['sun', 'sun_not_after'] }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ windows_open_now }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Window open – closing delayed"
+            else:
+              - if:
+                  - condition: template
+                    value_template: "{{ day_mode_helper != '' }}"
+                then:
+                  - action: input_boolean.turn_off
+                    target:
+                      entity_id: "{{ day_mode_helper }}"
+              - action: cover.set_cover_position
+                target:
+                  entity_id: !input cover_entity
+                data:
+                  position: !input close_position
+              - if:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Night mode – closed after sunset"
+
+      # Normal fixed/not-after evening boundary.
+      - conditions:
+          - condition: template
+            value_template: "{{ not vacation_active_now and enable_evening }}"
+          - condition: or
+            conditions:
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: weekday_evening
+                  - condition: template
+                    value_template: "{{ now().weekday() in [0,1,2,3,4] }}"
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: weekend_evening
+                  - condition: template
+                    value_template: "{{ now().weekday() in [5,6] }}"
+          - condition: template
+            value_template: "{{ evening_mode in ['time', 'sun_not_after'] }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ windows_open_now }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Window open – closing delayed"
+            else:
+              - if:
+                  - condition: template
+                    value_template: "{{ day_mode_helper != '' }}"
+                then:
+                  - action: input_boolean.turn_off
+                    target:
+                      entity_id: "{{ day_mode_helper }}"
+              - action: cover.set_cover_position
+                target:
+                  entity_id: !input cover_entity
+                data:
+                  position: !input close_position
+              - if:
+                  - condition: template
+                    value_template: "{{ debug_status_helper != '' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Night mode – closed at evening boundary"
+
+      # A previously delayed evening close: all selected contacts must now be closed
+      # and the relevant evening boundary must already have passed.
+      - conditions:
+          - condition: trigger
+            id: window_closed
+          - condition: template
+            value_template: "{{ enable_evening and not windows_open_now }}"
+          - condition: template
+            value_template: >-
+              {% if vacation_active_now %}
+                {{ after_vacation_evening }}
+              {% elif evening_mode == 'time' %}
+                {{ after_evening_time }}
+              {% elif evening_mode == 'sun_not_after' %}
+                {{ is_state('sun.sun', 'below_horizon') or after_evening_time }}
+              {% else %}
+                {{ is_state('sun.sun', 'below_horizon') }}
+              {% endif %}
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ day_mode_helper != '' }}"
+            then:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ day_mode_helper }}"
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: !input close_position
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "Window closed – delayed night closing completed"
+
+      # Restart recovery: vacation mode.
+      - conditions:
+          - condition: trigger
+            id: ha_start
+          - condition: template
+            value_template: "{{ vacation_active_now }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ enable_evening and after_vacation_evening }}
+                sequence:
+                  - if:
+                      - condition: template
+                        value_template: "{{ windows_open_now }}"
+                    then:
+                      - if:
+                          - condition: template
+                            value_template: "{{ day_mode_helper != '' }}"
+                        then:
+                          - action: input_boolean.turn_on
+                            target:
+                              entity_id: "{{ day_mode_helper }}"
+                      - if:
+                          - condition: template
+                            value_template: "{{ debug_status_helper != '' }}"
+                        then:
+                          - action: input_text.set_value
+                            target:
+                              entity_id: "{{ debug_status_helper }}"
+                        data:
+                          value: "Restart recovery – vacation, window open"
+                    else:
+                      - if:
+                          - condition: template
+                            value_template: "{{ day_mode_helper != '' }}"
+                        then:
+                          - action: input_boolean.turn_off
+                            target:
+                              entity_id: "{{ day_mode_helper }}"
+                      - action: cover.set_cover_position
+                        target:
+                          entity_id: !input cover_entity
+                        data:
+                          position: !input close_position
+                      - if:
+                          - condition: template
+                            value_template: "{{ debug_status_helper != '' }}"
+                        then:
+                          - action: input_text.set_value
+                            target:
+                              entity_id: "{{ debug_status_helper }}"
+                        data:
+                          value: "Restart recovery – vacation night restored"
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ enable_morning and after_vacation_morning and not after_vacation_evening }}
+                sequence:
+                  - action: cover.set_cover_position
+                    target:
+                      entity_id: !input cover_entity
+                    data:
+                      position: !input open_position
+                  - if:
+                      - condition: template
+                        value_template: "{{ day_mode_helper != '' }}"
+                    then:
+                      - action: input_boolean.turn_on
+                        target:
+                          entity_id: "{{ day_mode_helper }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ debug_status_helper != '' }}"
+                    then:
+                      - action: input_text.set_value
+                        target:
+                          entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: "Restart recovery – vacation day restored"
+
+      # Restart recovery: normal operation. Uses sun state plus configured hard
+      # morning/evening boundaries. This intentionally favors a safe, consistent
+      # day/night state over reproducing a missed offset to the exact second.
+      - conditions:
+          - condition: trigger
+            id: ha_start
+          - condition: template
+            value_template: "{{ not vacation_active_now }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ enable_evening and
+                         ((evening_mode == 'time' and after_evening_time) or
+                          (evening_mode == 'sun' and is_state('sun.sun', 'below_horizon')) or
+                          (evening_mode == 'sun_not_after' and
+                           (is_state('sun.sun', 'below_horizon') or after_evening_time))) }}
+                sequence:
+                  - if:
+                      - condition: template
+                        value_template: "{{ windows_open_now }}"
+                    then:
+                      - if:
+                          - condition: template
+                            value_template: "{{ day_mode_helper != '' }}"
+                        then:
+                          - action: input_boolean.turn_on
+                            target:
+                              entity_id: "{{ day_mode_helper }}"
+                      - if:
+                          - condition: template
+                            value_template: "{{ debug_status_helper != '' }}"
+                        then:
+                          - action: input_text.set_value
+                            target:
+                              entity_id: "{{ debug_status_helper }}"
+                        data:
+                          value: "Restart recovery – window open, closing delayed"
+                    else:
+                      - if:
+                          - condition: template
+                            value_template: "{{ day_mode_helper != '' }}"
+                        then:
+                          - action: input_boolean.turn_off
+                            target:
+                              entity_id: "{{ day_mode_helper }}"
+                      - action: cover.set_cover_position
+                        target:
+                          entity_id: !input cover_entity
+                        data:
+                          position: !input close_position
+                      - if:
+                          - condition: template
+                            value_template: "{{ debug_status_helper != '' }}"
+                        then:
+                          - action: input_text.set_value
+                            target:
+                              entity_id: "{{ debug_status_helper }}"
+                        data:
+                          value: "Restart recovery – night state restored"
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ enable_morning and
+                         ((morning_mode == 'time' and after_morning_time) or
+                          (morning_mode == 'sun' and is_state('sun.sun', 'above_horizon')) or
+                          (morning_mode == 'sun_not_before' and
+                           is_state('sun.sun', 'above_horizon') and after_morning_time)) }}
+                sequence:
+                  - action: cover.set_cover_position
+                    target:
+                      entity_id: !input cover_entity
+                    data:
+                      position: !input open_position
+                  - if:
+                      - condition: template
+                        value_template: "{{ day_mode_helper != '' }}"
+                    then:
+                      - action: input_boolean.turn_on
+                        target:
+                          entity_id: "{{ day_mode_helper }}"
+                  - if:
+                      - condition: template
+                        value_template: "{{ debug_status_helper != '' }}"
+                    then:
+                      - action: input_text.set_value
+                        target:
+                          entity_id: "{{ debug_status_helper }}"
+                    data:
+                      value: "Restart recovery – day state restored"
+
+    default:
+      - if:
+          - condition: template
+            value_template: "{{ debug_status_helper != '' }}"
+        then:
+          - action: input_text.set_value
+            target:
+              entity_id: "{{ debug_status_helper }}"
+        data:
+          value: "Waiting – no movement required"
