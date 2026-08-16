@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Adaptive Solar Shading v0.1.4"
+  name: "HomeLabNext – Adaptive Solar Shading v0.1.5"
   description: >
     Universal adaptive solar shading for East, South and West facades.
 
@@ -702,7 +702,10 @@ actions:
                 and daily_move_counter != ''
                 and (
                   trigger.id == 'midnight'
-                  or states[daily_move_counter].last_changed.date() != now().date()
+                  or (
+                    (states(daily_move_counter) | int(0)) > 0
+                    and states[daily_move_counter].last_changed.date() != now().date()
+                  )
                 )
               }}
         sequence:

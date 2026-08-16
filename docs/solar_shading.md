@@ -1,6 +1,6 @@
 # HomeLabNext – Adaptive Solar Shading
 
-**Current version:** v0.1.4
+**Current version:** v0.1.5
 
 Adaptive Solar Shading is responsible only for temporary daytime shading.
 Normal morning/evening opening and closing belongs to the separate
@@ -64,3 +64,20 @@ GitHub:
 Raw import URL:
 
 `https://raw.githubusercontent.com/homelabnext/home-assistant/main/blueprints/automation/solar_shading/solar_shading.yaml`
+
+
+## v0.1.5 counter recovery fix
+
+v0.1.5 fixes a daily movement counter edge case introduced in v0.1.4.
+
+If the counter was already `0` at midnight, `counter.reset` did not change the entity state.
+Its `last_changed` timestamp could therefore remain on the previous day. The restart
+recovery check then incorrectly treated the counter as stale on every periodic evaluation,
+reset it again and stopped the automation before solar shading logic could run.
+
+The recovery reset now only runs outside the midnight trigger when:
+
+- the counter value is greater than `0`, and
+- its `last_changed` date is older than the current day.
+
+A counter already at `0` no longer blocks normal shading evaluation.
