@@ -1,0 +1,248 @@
+blueprint:
+  name: "Battery Monitor – Low Battery Notification"
+  description: >
+    Überwacht ausgewählte Batterie-Sensoren und sendet eine Benachrichtigung,
+    sobald eine Batterie unter den eingestellten Grenzwert fällt.
+
+    Funktionen:
+    - Mehrere Batterie-Sensoren auswählbar
+    - Frei einstellbarer Grenzwert, Standard 10 %
+    - Benachrichtigung beim Unterschreiten
+    - Prüfung nach Home-Assistant-Neustart
+    - Manueller Test über "Aktionen ausführen"
+    - Optionale tägliche Erinnerung
+    - Optionale Entwarnung
+    - Zentrales Notification-Script
+
+    Benötigt ein Script, das die Variablen "title" und "message" verarbeitet,
+    z. B. script.home_notification.
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/battery_monitor/battery_monitor.yaml
+
+  input:
+    battery_sensors:
+      name: Batterie-Sensoren
+      description: Alle Batterie-Sensoren auswählen, die überwacht werden sollen.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: sensor
+              device_class: battery
+
+    battery_threshold:
+      name: Warnschwelle
+      description: Unterhalb dieses Batteriestands wird eine Warnung ausgelöst.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 99
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    notification_script:
+      name: Notification-Script
+      description: Zentrales Script für Benachrichtigungen, z. B. script.home_notification.
+      selector:
+        entity:
+          filter:
+            - domain: script
+
+    startup_delay:
+      name: Verzögerung nach HA-Neustart
+      description: Wartezeit nach einem Home-Assistant-Neustart, bevor Batterien geprüft werden.
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          step: 5
+          unit_of_measurement: s
+          mode: box
+
+    reminder_enabled:
+      name: Tägliche Erinnerung
+      description: Sendet einmal täglich erneut eine Warnung für Batterien unter dem Grenzwert.
+      default: true
+      selector:
+        boolean:
+
+    reminder_time:
+      name: Uhrzeit der Erinnerung
+      description: Uhrzeit für die tägliche Prüfung.
+      default: "10:00:00"
+      selector:
+        time:
+
+    recovery_enabled:
+      name: Entwarnung senden
+      description: Sendet eine Nachricht, wenn eine Batterie wieder über den Grenzwert steigt.
+      default: false
+      selector:
+        boolean:
+
+mode: queued
+max: 50
+
+variables:
+  battery_sensors: !input battery_sensors
+  battery_threshold: !input battery_threshold
+  reminder_enabled: !input reminder_enabled
+  recovery_enabled: !input recovery_enabled
+
+triggers:
+  - trigger: numeric_state
+    entity_id: !input battery_sensors
+    below: !input battery_threshold
+    id: battery_low
+
+  - trigger: numeric_state
+    entity_id: !input battery_sensors
+    above: !input battery_threshold
+    id: battery_recovered
+
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+  - trigger: time
+    at: !input reminder_time
+    id: daily_reminder
+
+actions:
+  - variables:
+      trigger_type: "{{ trigger.id | default('manual') }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'battery_low' }}"
+        sequence:
+          - variables:
+              battery_name: >-
+                {{ state_attr(trigger.entity_id, 'friendly_name')
+                   | default(trigger.entity_id, true) }}
+              battery_level: "{{ states(trigger.entity_id) | float(0) | round(0) }}"
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "🔋 Batterie schwach"
+                message: >-
+                  {{ battery_name }} hat nur noch {{ battery_level }} % Batterie.
+                  Bitte Batterie tauschen.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'battery_recovered' and recovery_enabled }}"
+        sequence:
+          - variables:
+              battery_name: >-
+                {{ state_attr(trigger.entity_id, 'friendly_name')
+                   | default(trigger.entity_id, true) }}
+              battery_level: "{{ states(trigger.entity_id) | float(0) | round(0) }}"
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "🔋 Batterie wieder OK"
+                message: "{{ battery_name }} hat wieder {{ battery_level }} % Batterie."
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'ha_start' }}"
+        sequence:
+          - delay:
+              seconds: !input startup_delay
+          - repeat:
+              for_each: "{{ battery_sensors }}"
+              sequence:
+                - variables:
+                    battery_entity: "{{ repeat.item }}"
+                    battery_state: "{{ states(repeat.item) }}"
+                - if:
+                    - condition: template
+                      value_template: >-
+                        {{ is_number(battery_state)
+                           and (battery_state | float) < (battery_threshold | float) }}
+                  then:
+                    - variables:
+                        battery_name: >-
+                          {{ state_attr(battery_entity, 'friendly_name')
+                             | default(battery_entity, true) }}
+                        battery_level: "{{ battery_state | float(0) | round(0) }}"
+                    - action: script.turn_on
+                      target:
+                        entity_id: !input notification_script
+                      data:
+                        variables:
+                          title: "🔋 Batterie schwach"
+                          message: >-
+                            {{ battery_name }} hat nur noch {{ battery_level }} % Batterie.
+                            Bitte Batterie tauschen.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'daily_reminder' and reminder_enabled }}"
+        sequence:
+          - repeat:
+              for_each: "{{ battery_sensors }}"
+              sequence:
+                - variables:
+                    battery_entity: "{{ repeat.item }}"
+                    battery_state: "{{ states(repeat.item) }}"
+                - if:
+                    - condition: template
+                      value_template: >-
+                        {{ is_number(battery_state)
+                           and (battery_state | float) < (battery_threshold | float) }}
+                  then:
+                    - variables:
+                        battery_name: >-
+                          {{ state_attr(battery_entity, 'friendly_name')
+                             | default(battery_entity, true) }}
+                        battery_level: "{{ battery_state | float(0) | round(0) }}"
+                    - action: script.turn_on
+                      target:
+                        entity_id: !input notification_script
+                      data:
+                        variables:
+                          title: "🔋 Batterie weiterhin schwach"
+                          message: >-
+                            {{ battery_name }} hat weiterhin nur {{ battery_level }} % Batterie.
+                            Bitte Batterie tauschen.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'manual' }}"
+        sequence:
+          - repeat:
+              for_each: "{{ battery_sensors }}"
+              sequence:
+                - variables:
+                    battery_entity: "{{ repeat.item }}"
+                    battery_state: "{{ states(repeat.item) }}"
+                - if:
+                    - condition: template
+                      value_template: >-
+                        {{ is_number(battery_state)
+                           and (battery_state | float) < (battery_threshold | float) }}
+                  then:
+                    - variables:
+                        battery_name: >-
+                          {{ state_attr(battery_entity, 'friendly_name')
+                             | default(battery_entity, true) }}
+                        battery_level: "{{ battery_state | float(0) | round(0) }}"
+                    - action: script.turn_on
+                      target:
+                        entity_id: !input notification_script
+                      data:
+                        variables:
+                          title: "🔋 Batterie schwach"
+                          message: >-
+                            {{ battery_name }} hat nur noch {{ battery_level }} % Batterie.
+                            Bitte Batterie tauschen.

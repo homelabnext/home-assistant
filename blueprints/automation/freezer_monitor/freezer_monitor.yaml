@@ -1,0 +1,263 @@
+blueprint:
+  name: "Freezer Monitor – Gefrierschrank überwachen"
+  description: >
+    Überwacht einen Gefrierschrank auf ausgeschaltete Stromversorgung,
+    ungewöhnlich lange sehr niedrige Leistungsaufnahme und eine offen
+    stehende Tür. Benachrichtigungen werden über ein zentrales
+    Notification-Script versendet, z. B. script.home_notification.
+
+    Empfohlene Startwerte:
+    - Shelly aus: 5 Sekunden
+    - Leistung unter: 0,5 W
+    - Niedrige Leistung: 45 Minuten
+    - Türwarnung: 2 Minuten
+    - Kritische Türwarnung: 5 Minuten
+    - Prüfung nach HA-Neustart: 30 Sekunden
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/freezer_monitor/freezer_monitor.yaml
+
+  input:
+    power_switch:
+      name: Stromversorgung / Shelly
+      description: Switch-Entity der Steckdose vor dem Gefrierschrank.
+      selector:
+        entity:
+          filter:
+            - domain: switch
+
+    power_sensor:
+      name: Leistungssensor
+      description: Aktuelle Leistungsaufnahme des Gefrierschranks in Watt.
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: power
+
+    door_sensor:
+      name: Türkontakt
+      description: Türkontakt des Gefrierschranks.
+      selector:
+        entity:
+          filter:
+            - domain: binary_sensor
+
+    notification_script:
+      name: Notification-Script
+      description: Zentrales Benachrichtigungs-Script, z. B. script.home_notification.
+      selector:
+        entity:
+          filter:
+            - domain: script
+
+    low_power_threshold:
+      name: Grenze für niedrige Leistung
+      default: 0.5
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.1
+          unit_of_measurement: W
+          mode: box
+
+    low_power_duration:
+      name: Dauer niedrige Leistung
+      default:
+        hours: 0
+        minutes: 45
+        seconds: 0
+      selector:
+        duration:
+
+    door_warning_duration:
+      name: Türwarnung
+      default:
+        hours: 0
+        minutes: 2
+        seconds: 0
+      selector:
+        duration:
+
+    door_critical_duration:
+      name: Kritische Türwarnung
+      default:
+        hours: 0
+        minutes: 5
+        seconds: 0
+      selector:
+        duration:
+
+    switch_off_duration:
+      name: Verzögerung bei ausgeschaltetem Shelly
+      default:
+        hours: 0
+        minutes: 0
+        seconds: 5
+      selector:
+        duration:
+
+    recovery_enabled:
+      name: Entwarnung Stromversorgung
+      description: Meldung senden, wenn die Stromversorgung wieder eingeschaltet wird.
+      default: true
+      selector:
+        boolean:
+
+    startup_delay:
+      name: Prüfung nach HA-Neustart
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          step: 5
+          unit_of_measurement: s
+          mode: box
+
+mode: queued
+max: 20
+
+variables:
+  power_sensor: !input power_sensor
+  recovery_enabled: !input recovery_enabled
+
+triggers:
+  - trigger: state
+    entity_id: !input power_switch
+    to: "off"
+    for: !input switch_off_duration
+    id: switch_off
+
+  - trigger: state
+    entity_id: !input power_switch
+    to: "on"
+    id: switch_on
+
+  - trigger: numeric_state
+    entity_id: !input power_sensor
+    below: !input low_power_threshold
+    for: !input low_power_duration
+    id: low_power
+
+  - trigger: state
+    entity_id: !input door_sensor
+    to: "on"
+    for: !input door_warning_duration
+    id: door_warning
+
+  - trigger: state
+    entity_id: !input door_sensor
+    to: "on"
+    for: !input door_critical_duration
+    id: door_critical
+
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+actions:
+  - variables:
+      trigger_type: "{{ trigger.id | default('manual') }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'switch_off' }}"
+        sequence:
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "🚨 Gefrierschrank"
+                message: >-
+                  Die Stromversorgung des Gefrierschranks wurde ausgeschaltet.
+                  Bitte sofort prüfen.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'switch_on' and recovery_enabled }}"
+        sequence:
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "✅ Gefrierschrank"
+                message: "Die Stromversorgung des Gefrierschranks ist wieder eingeschaltet."
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'low_power' }}"
+        sequence:
+          - variables:
+              current_power: "{{ states(power_sensor) | float(0) | round(1) }}"
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "⚠️ Gefrierschrank"
+                message: >-
+                  Der Gefrierschrank verbraucht seit längerer Zeit nur
+                  {{ current_power }} W. Bitte Stromversorgung und Gerät prüfen.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'door_warning' }}"
+        sequence:
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "⚠️ Gefrierschranktür offen"
+                message: "Die Tür des Gefrierschranks steht seit längerer Zeit offen. Bitte schließen."
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'door_critical' }}"
+        sequence:
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: "🚨 Gefrierschranktür"
+                message: "Die Gefrierschranktür steht immer noch offen. Bitte sofort prüfen."
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_type == 'ha_start' }}"
+        sequence:
+          - delay:
+              seconds: !input startup_delay
+          - if:
+              - condition: state
+                entity_id: !input power_switch
+                state: "off"
+            then:
+              - action: script.turn_on
+                target:
+                  entity_id: !input notification_script
+                data:
+                  variables:
+                    title: "🚨 Gefrierschrank"
+                    message: >-
+                      Nach dem Home-Assistant-Neustart wurde festgestellt,
+                      dass die Stromversorgung des Gefrierschranks ausgeschaltet ist.
+          - if:
+              - condition: state
+                entity_id: !input door_sensor
+                state: "on"
+            then:
+              - action: script.turn_on
+                target:
+                  entity_id: !input notification_script
+                data:
+                  variables:
+                    title: "⚠️ Gefrierschrank"
+                    message: >-
+                      Nach dem Home-Assistant-Neustart wurde festgestellt,
+                      dass die Gefrierschranktür offen ist.

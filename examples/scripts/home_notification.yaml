@@ -1,0 +1,27 @@
+# Beispiel für ein zentrales Home-Assistant-Notification-Script.
+# Die Entity-Namen müssen an die eigene Installation angepasst werden.
+
+home_notification:
+  alias: Home Notification
+  description: Zentrale Push- und Telegram-Benachrichtigung für Home Assistant.
+  mode: parallel
+  max: 20
+  sequence:
+    - action: notify.mobile_app_DEIN_IPHONE
+      data:
+        title: "{{ title | default('Home Assistant') }}"
+        message: "{{ message | default('Benachrichtigung aus Home Assistant') }}"
+
+    - action: notify.send_message
+      target:
+        entity_id: notify.ZWEITES_IPHONE
+      data:
+        title: "{{ title | default('Home Assistant') }}"
+        message: "{{ message | default('Benachrichtigung aus Home Assistant') }}"
+
+    - action: notify.send_message
+      target:
+        entity_id: notify.TELEGRAM_GRUPPE
+      data:
+        title: "{{ title | default('Home Assistant') }}"
+        message: "{{ message | default('Benachrichtigung aus Home Assistant') }}"
