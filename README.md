@@ -68,6 +68,16 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/st
 
 [Documentation](blueprints/automation/starlink_position_notification/README.md)
 
+### Waste Collection Notification
+
+Daily waste collection reminder through the central notification script. Select multiple waste sensors and a notification time; all matching collections are combined into one message. No helpers required.
+
+**Current version:** v0.1.1
+
+[Blueprint file](blueprints/automation/waste_collection_notification/waste_collection_notification.yaml) · [Documentation](blueprints/automation/waste_collection_notification/README.md)
+
+[![Open your Home Assistant instance and import this blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fwaste_collection_notification%2Fwaste_collection_notification.yaml)
+
 ## How the cover blueprints work together
 
 The blueprints are independent. If the same cover uses both, they can share one `input_boolean` as a Day Mode helper.
@@ -102,9 +112,12 @@ home-assistant/
 │       ├── morning_evening_cover_control/
 │       │   ├── README.md
 │       │   └── morning_evening_cover_control.yaml
-│       └── starlink_position_notification/
+│       ├── starlink_position_notification/
+│       │   ├── README.md
+│       │   └── starlink_position_notification.yaml
+│       └── waste_collection_notification/
 │           ├── README.md
-│           └── starlink_position_notification.yaml
+│           └── waste_collection_notification.yaml
 ├── packages/
 │   └── solar_shading_helpers.example.yaml
 ├── dashboards/
@@ -148,6 +161,7 @@ Blueprints are versioned independently. Release tags should identify both the co
 solar-shading-v0.1.3
 morning-evening-v0.1.1
 starlink-position-monitor-v0.1.4
+waste-collection-notification-v0.1.1
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).

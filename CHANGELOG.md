@@ -15,6 +15,23 @@ Blueprints are versioned independently. A repository restructuring does not chan
 - Added stable top-level directories for `packages`, `dashboards`, `templates` and `docs`.
 - Consolidated documentation so each blueprint keeps its primary documentation beside its YAML file.
 
+## Waste Collection Notification
+
+### v0.1.1
+
+- Added the blueprint to the repository with documentation and import link.
+- Corrected the message to say today, tomorrow or in N days according to the configured lead time.
+- Used a neutral default notification title and a standard text input.
+- Added the canonical blueprint source URL.
+
+### v0.1.0
+
+- Initial standalone blueprint.
+- Daily notification at a configurable time, default 18:00, one day before collection.
+- Combined selected waste sensors into one message through `script.home_notification`.
+- Supported numeric states, the standard `TYPE in N days` state and the optional `daysTo` attribute.
+- Ignored unknown and unavailable sensors; no helper entities required.
+
 ## Starlink Position Monitor
 
 ### v0.1.4

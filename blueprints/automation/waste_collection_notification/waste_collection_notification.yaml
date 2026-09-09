@@ -1,0 +1,121 @@
+blueprint:
+  name: HomeLabNext – Müllabholung-Erinnerung v0.1.1
+  description: >-
+    Sendet zu einer festgelegten Uhrzeit eine gemeinsame Benachrichtigung,
+    wenn eine oder mehrere ausgewählte Waste-Collection-Sensoren die Abholung
+    nach dem eingestellten Vorlauf melden (Standard: morgen). Unbekannte oder nicht verfügbare Sensoren
+    werden ignoriert.
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/waste_collection_notification/waste_collection_notification.yaml
+  input:
+    waste_sensors:
+      name: Abfall-Sensoren
+      description: >-
+        Wähle Biomüll, LVP, Papier, Restmüll und weitere gewünschte
+        Waste-Collection-Sensoren aus.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: sensor
+
+    notification_time:
+      name: Uhrzeit der Erinnerung
+      description: Zu dieser Uhrzeit wird täglich geprüft.
+      default: "18:00:00"
+      selector:
+        time: {}
+
+    days_before:
+      name: Tage vor der Abholung
+      description: Für „morgen“ auf 1 lassen.
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 7
+          step: 1
+          mode: box
+          unit_of_measurement: Tage
+
+    notification_script:
+      name: Zentrales Notify-Skript
+      description: Skript, das die Variablen title und message annimmt.
+      default: script.home_notification
+      selector:
+        entity:
+          filter:
+            - domain: script
+
+    notification_title:
+      name: Titel der Benachrichtigung
+      default: "🗑️ Müllabholung"
+
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: time
+    at: !input notification_time
+
+conditions: []
+
+actions:
+  - variables:
+      selected_sensors: !input waste_sensors
+      reminder_days: !input days_before
+
+  - condition: template
+    value_template: >-
+      {% set ns = namespace(found=false) %}
+      {% set suffix = ' in ' ~ (reminder_days | int) ~ ' days' %}
+      {% for entity_id in selected_sensors %}
+        {% set sensor_state = states(entity_id) %}
+        {% set days_attribute = state_attr(entity_id, 'daysTo') %}
+        {% if sensor_state not in ['unknown', 'unavailable', 'none', '']
+              and (
+                (sensor_state | int(-999)) == (reminder_days | int)
+                or sensor_state.endswith(suffix)
+                or (
+                  days_attribute is not none
+                  and (days_attribute | int(-999)) == (reminder_days | int)
+                )
+              ) %}
+          {% set ns.found = true %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.found }}
+
+  - action: script.turn_on
+    target:
+      entity_id: !input notification_script
+    data:
+      variables:
+        title: !input notification_title
+        message: >-
+          {% set ns = namespace(names=[]) %}
+          {% set suffix = ' in ' ~ (reminder_days | int) ~ ' days' %}
+          {% for entity_id in selected_sensors %}
+            {% set sensor_state = states(entity_id) %}
+            {% set days_attribute = state_attr(entity_id, 'daysTo') %}
+            {% if sensor_state not in ['unknown', 'unavailable', 'none', '']
+                  and (
+                    (sensor_state | int(-999)) == (reminder_days | int)
+                    or sensor_state.endswith(suffix)
+                    or (
+                      days_attribute is not none
+                      and (days_attribute | int(-999)) == (reminder_days | int)
+                    )
+                  ) %}
+              {% set label = state_attr(entity_id, 'friendly_name') or entity_id %}
+              {% set ns.names = ns.names + [label] %}
+            {% endif %}
+          {% endfor %}
+          {% set when = 'Heute' if reminder_days | int == 0 else
+            'Morgen' if reminder_days | int == 1 else
+            'In ' ~ (reminder_days | int) ~ ' Tagen' %}
+          {% if ns.names | count == 1 %}
+            {{ when }} wird {{ ns.names[0] }} abgeholt. Bitte rechtzeitig bereitstellen.
+          {% else %}
+            {{ when }} werden {{ ns.names[:-1] | join(', ') }} und {{ ns.names[-1] }} abgeholt. Bitte rechtzeitig bereitstellen.
+          {% endif %}
