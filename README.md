@@ -32,7 +32,7 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/so
 
 Daily opening and closing control for covers using sunrise/sunset or fixed schedules, weekday/weekend limits, vacation mode, window contacts, manual override and optional coordination with Adaptive Solar Shading.
 
-**Current version:** v0.1.1
+**Current version:** v0.1.2
 
 **Blueprint file**
 
@@ -147,7 +147,7 @@ Blueprints are versioned independently. Release tags should identify both the co
 ```text
 solar-shading-v0.1.3
 morning-evening-v0.1.1
-starlink-position-monitor-v0.1.1
+starlink-position-monitor-v0.1.2
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).
