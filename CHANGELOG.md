@@ -17,6 +17,14 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Starlink Position Monitor
 
+### v0.1.2
+
+- Replaced text selectors with standard blueprint text inputs for broader frontend compatibility.
+- Replaced duration selectors with editable numeric minute fields.
+- Made the stuck-motors sensor optional so a missing selection no longer blocks saving.
+- Kept unknown and unavailable states excluded from warnings and recovery notifications.
+- Preserved the configurable orientation check interval.
+
 ### v0.1.1
 
 - Fixed missing input controls for notification titles and time durations in the Home Assistant blueprint editor.
