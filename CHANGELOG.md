@@ -15,6 +15,19 @@ Blueprints are versioned independently. A repository restructuring does not chan
 - Added stable top-level directories for `packages`, `dashboards`, `templates` and `docs`.
 - Consolidated documentation so each blueprint keeps its primary documentation beside its YAML file.
 
+## Starlink Position Monitor
+
+### v0.1.0
+
+- Initial public release.
+- Added monitoring for unexpected location, mast alignment, impairment/obstruction and stuck motors.
+- Added optional azimuth and elevation monitoring with configurable reference values and tolerances.
+- Added correct circular azimuth deviation calculation across the -180°/180° boundary.
+- Suppressed warning and recovery notifications while required states are `unknown` or `unavailable`.
+- Added delayed warning, paired recovery notification and Home Assistant startup evaluation.
+- Added support for the central `script.home_notification` script.
+- No helper entities required.
+
 ## Adaptive Solar Shading
 
 ### v0.1.3

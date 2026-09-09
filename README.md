@@ -48,6 +48,26 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/mo
 
 [Documentation](blueprints/automation/morning_evening_cover_control/README.md)
 
+### Starlink Position Monitor
+
+Monitors Starlink location, mast alignment, obstruction/impairment, stuck motors and optional azimuth/elevation deviations. Notifications are sent through a configurable central Home Assistant notification script.
+
+**Current version:** v0.1.0
+
+**Blueprint file**
+
+`blueprints/automation/starlink_position_notification/starlink_position_notification.yaml`
+
+**GitHub**
+
+https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/starlink_position_notification/starlink_position_notification.yaml
+
+**Import into Home Assistant**
+
+[![Open your Home Assistant instance and import this blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Fhomelabnext%2Fhome-assistant%2Fmain%2Fblueprints%2Fautomation%2Fstarlink_position_notification%2Fstarlink_position_notification.yaml)
+
+[Documentation](blueprints/automation/starlink_position_notification/README.md)
+
 ## How the cover blueprints work together
 
 The blueprints are independent. If the same cover uses both, they can share one `input_boolean` as a Day Mode helper.
@@ -79,9 +99,12 @@ home-assistant/
 │       ├── solar_shading/
 │       │   ├── README.md
 │       │   └── solar_shading.yaml
-│       └── morning_evening_cover_control/
+│       ├── morning_evening_cover_control/
+│       │   ├── README.md
+│       │   └── morning_evening_cover_control.yaml
+│       └── starlink_position_notification/
 │           ├── README.md
-│           └── morning_evening_cover_control.yaml
+│           └── starlink_position_notification.yaml
 ├── packages/
 │   └── solar_shading_helpers.example.yaml
 ├── dashboards/
@@ -109,6 +132,12 @@ or:
 /config/blueprints/automation/homelabnext/morning_evening_cover_control.yaml
 ```
 
+or:
+
+```text
+/config/blueprints/automation/homelabnext/starlink_position_notification.yaml
+```
+
 After copying a blueprint, reload automations/blueprints or restart Home Assistant if required by your setup.
 
 ## Versioning and releases
@@ -118,6 +147,7 @@ Blueprints are versioned independently. Release tags should identify both the co
 ```text
 solar-shading-v0.1.3
 morning-evening-v0.1.1
+starlink-position-monitor-v0.1.0
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).

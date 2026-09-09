@@ -1,0 +1,405 @@
+blueprint:
+  name: "HomeLabNext – Starlink Position Monitor v0.1.0"
+  description: >-
+    Überwacht die Starlink-Diagnosesensoren **Unerwarteter Standort**,
+    **Mast fast senkrecht**, **Beeinträchtigt** und **Motoren stecken fest**.
+    Wird mindestens ein Binärsensor für die eingestellte Dauer problematisch
+    (`on`), erfolgt eine Push-Benachrichtigung über das zentrale Skript
+    `script.home_notification`.
+
+    Optional können zusätzlich Azimut und Elevation überwacht werden. Dabei
+    werden die gemessenen Winkel mit einstellbaren Referenzwerten verglichen.
+    Die Winkelüberwachung ist standardmäßig deaktiviert, weil sich eine
+    motorisierte Starlink-Antenne selbst neu ausrichten kann.
+
+    Optional wird eine Entwarnung gesendet, sobald beide Sensoren wieder
+    `off` beziehungsweise **OK** sind und die optionale Ausrichtung wieder
+    innerhalb der Toleranz liegt. Zustände wie `unknown` oder `unavailable`
+    erzeugen keine Warnung und keine falsche Entwarnung. Nach einem Neustart
+    von Home Assistant wird der aktuelle Zustand nach einer kurzen Wartezeit
+    erneut geprüft.
+
+    Voraussetzungen:
+
+    - eingerichtete Starlink-Integration
+    - die vier Starlink-Binärsensoren für Standort, Maststellung, Beeinträchtigung und Motoren
+    - das zentrale Benachrichtigungsskript mit den Variablen `title` und `message`
+
+    Es werden keine Helper benötigt.
+  domain: automation
+  author: HomelabNext
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/starlink_position_notification/starlink_position_notification.yaml
+  homeassistant:
+    min_version: 2024.6.0
+
+  input:
+    sensors:
+      name: "Starlink-Sensoren"
+      icon: mdi:satellite-uplink
+      input:
+        unexpected_location_sensor:
+          name: "Unerwarteter Standort"
+          description: >-
+            Starlink-Binärsensor „Unerwarteter Standort“. Normal ist `off`
+            beziehungsweise „OK“, ein Problem ist `on`.
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+        mast_position_sensor:
+          name: "Mast fast senkrecht"
+          description: >-
+            Starlink-Binärsensor „Mast fast senkrecht“. Normal ist `off`
+            beziehungsweise „OK“, ein Problem ist `on`.
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+        impaired_sensor:
+          name: "Beeinträchtigt"
+          description: >-
+            Starlink-Binärsensor „Beeinträchtigt“. Normal ist `off`
+            beziehungsweise „OK“, ein Problem ist `on`.
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+        motors_stuck_sensor:
+          name: "Motoren stecken fest"
+          description: >-
+            Starlink-Binärsensor „Motoren stecken fest“. Normal ist `off`
+            beziehungsweise „OK“, ein Problem ist `on`.
+          selector:
+            entity:
+              filter:
+                - domain: binary_sensor
+
+    orientation:
+      name: "Optionale Ausrichtungsüberwachung"
+      icon: mdi:compass-outline
+      collapsed: true
+      input:
+        orientation_enabled:
+          name: "Azimut und Elevation überwachen"
+          description: >-
+            Nur aktivieren, wenn Änderungen der automatisch gewählten
+            Starlink-Ausrichtung bei dieser Installation als Fehler gelten.
+          default: true
+          selector:
+            boolean:
+        azimuth_sensor:
+          name: "Azimut-Sensor"
+          description: "Starlink-Sensor mit dem horizontalen Winkel in Grad."
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+        elevation_sensor:
+          name: "Elevationssensor (in der Oberfläche: Meereshöhe)"
+          description: >-
+            Starlink-Sensor mit dem vertikalen Winkel in Grad. Die Bezeichnung
+            „Meereshöhe“ meint hier nicht Meter über dem Meeresspiegel.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+        azimuth_reference:
+          name: "Referenz-Azimut"
+          default: -22
+          selector:
+            number:
+              min: -180
+              max: 180
+              step: 0.1
+              unit_of_measurement: "°"
+              mode: box
+        elevation_reference:
+          name: "Referenz-Elevation"
+          default: 71
+          selector:
+            number:
+              min: 0
+              max: 90
+              step: 0.1
+              unit_of_measurement: "°"
+              mode: box
+        azimuth_tolerance:
+          name: "Erlaubte Azimut-Abweichung"
+          default: 1
+          selector:
+            number:
+              min: 1
+              max: 90
+              step: 1
+              unit_of_measurement: "°"
+              mode: slider
+        elevation_tolerance:
+          name: "Erlaubte Elevationsabweichung"
+          default: 1
+          selector:
+            number:
+              min: 1
+              max: 45
+              step: 1
+              unit_of_measurement: "°"
+              mode: slider
+
+    notification:
+      name: "Benachrichtigung"
+      icon: mdi:bell-alert
+      input:
+        notification_script:
+          name: "Zentrales Notify-Skript"
+          description: >-
+            Skript, das die Variablen `title` und `message` annimmt.
+          default: script.home_notification
+          selector:
+            entity:
+              filter:
+                - domain: script
+        alert_title:
+          name: "Titel der Warnung"
+          default: "⚠️ Starlink-Antenne verschoben"
+          selector:
+            text:
+        recovery_enabled:
+          name: "Entwarnung senden"
+          description: >-
+            Sendet eine Nachricht, sobald beide Diagnosesensoren wieder OK sind.
+          default: true
+          selector:
+            boolean:
+        recovery_title:
+          name: "Titel der Entwarnung"
+          default: "✅ Starlink-Antenne wieder in Ordnung"
+          selector:
+            text:
+
+    timing:
+      name: "Zeitverhalten"
+      icon: mdi:timer-outline
+      collapsed: true
+      input:
+        alert_duration:
+          name: "Verzögerung bis zur Warnung"
+          description: >-
+            Der Fehler muss so lange ohne Unterbrechung bestehen. Verhindert
+            Meldungen durch kurze Messfehler oder einen Starlink-Neustart.
+          default:
+            minutes: 2
+          selector:
+            duration:
+        recovery_duration:
+          name: "Verzögerung bis zur Entwarnung"
+          description: >-
+            Beide Sensoren müssen so lange wieder OK sein.
+          default:
+            minutes: 2
+          selector:
+            duration:
+        startup_delay:
+          name: "Wartezeit nach Home-Assistant-Neustart"
+          description: >-
+            Gibt der Starlink-Integration Zeit, gültige Zustände zu liefern.
+          default:
+            minutes: 2
+          selector:
+            duration:
+
+variables:
+  unexpected_location_sensor: !input unexpected_location_sensor
+  mast_position_sensor: !input mast_position_sensor
+  impaired_sensor: !input impaired_sensor
+  motors_stuck_sensor: !input motors_stuck_sensor
+  orientation_enabled: !input orientation_enabled
+  azimuth_sensor: !input azimuth_sensor
+  elevation_sensor: !input elevation_sensor
+  azimuth_reference: !input azimuth_reference
+  elevation_reference: !input elevation_reference
+  azimuth_tolerance: !input azimuth_tolerance
+  elevation_tolerance: !input elevation_tolerance
+  notification_script: !input notification_script
+  alert_title: !input alert_title
+  recovery_enabled: !input recovery_enabled
+  recovery_title: !input recovery_title
+
+triggers:
+  - trigger: state
+    entity_id: !input unexpected_location_sensor
+    to: "on"
+    for: !input alert_duration
+    id: problem
+
+  - trigger: state
+    entity_id: !input mast_position_sensor
+    to: "on"
+    for: !input alert_duration
+    id: problem
+
+  - trigger: state
+    entity_id: !input impaired_sensor
+    to: "on"
+    for: !input alert_duration
+    id: problem
+
+  - trigger: state
+    entity_id: !input motors_stuck_sensor
+    to: "on"
+    for: !input alert_duration
+    id: problem
+
+  - trigger: time_pattern
+    minutes: "/5"
+    id: orientation_check
+
+  - trigger: homeassistant
+    event: start
+    id: startup
+
+conditions: []
+
+actions:
+  - if:
+      - condition: trigger
+        id: startup
+    then:
+      - delay: !input startup_delay
+
+  - if:
+      - condition: trigger
+        id: orientation_check
+    then:
+      - delay: !input alert_duration
+
+  - condition: template
+    value_template: >-
+      {% set orientation_configured = orientation_enabled
+         and azimuth_sensor | length > 0
+         and elevation_sensor | length > 0 %}
+      {% set orientation_valid = orientation_configured
+         and is_number(states(azimuth_sensor))
+         and is_number(states(elevation_sensor)) %}
+      {% set azimuth_delta = (((states(azimuth_sensor) | float(0)
+         - azimuth_reference | float(0) + 180) % 360) - 180) | abs %}
+      {% set elevation_delta = (states(elevation_sensor) | float(0)
+         - elevation_reference | float(0)) | abs %}
+      {{ trigger.id in ['problem', 'startup', 'orientation_check']
+         and (is_state(unexpected_location_sensor, 'on')
+              or is_state(mast_position_sensor, 'on')
+              or is_state(impaired_sensor, 'on')
+              or is_state(motors_stuck_sensor, 'on')
+              or (orientation_valid
+                  and (azimuth_delta > azimuth_tolerance | float(0)
+                       or elevation_delta > elevation_tolerance | float(0))))) }}
+
+  - action: script.turn_on
+    target:
+      entity_id: !input notification_script
+    data:
+      variables:
+        title: "{{ alert_title }}"
+        message: >-
+          {% set ns = namespace(issues=[]) %}
+          {% if is_state(unexpected_location_sensor, 'on') %}
+            {% set ns.issues = ns.issues + ['unerwarteter Standort'] %}
+          {% endif %}
+          {% if is_state(mast_position_sensor, 'on') %}
+            {% set ns.issues = ns.issues + ['Mast steht nicht annähernd senkrecht'] %}
+          {% endif %}
+          {% if is_state(impaired_sensor, 'on') %}
+            {% set ns.issues = ns.issues + ['Verbindung ist beeinträchtigt'] %}
+          {% endif %}
+          {% if is_state(motors_stuck_sensor, 'on') %}
+            {% set ns.issues = ns.issues + ['Motoren stecken fest'] %}
+          {% endif %}
+          {% set orientation_configured = orientation_enabled
+             and azimuth_sensor | length > 0
+             and elevation_sensor | length > 0 %}
+          {% if orientation_configured
+                and is_number(states(azimuth_sensor))
+                and is_number(states(elevation_sensor)) %}
+            {% set azimuth_delta = (((states(azimuth_sensor) | float(0)
+               - azimuth_reference | float(0) + 180) % 360) - 180) | abs %}
+            {% set elevation_delta = (states(elevation_sensor) | float(0)
+               - elevation_reference | float(0)) | abs %}
+            {% if azimuth_delta > azimuth_tolerance | float(0)
+                  or elevation_delta > elevation_tolerance | float(0) %}
+              {% set ns.issues = ns.issues +
+                 ['Ausrichtung abweichend: Azimut '
+                  ~ states(azimuth_sensor) ~ '° (Referenz '
+                  ~ azimuth_reference ~ '°), Elevation '
+                  ~ states(elevation_sensor) ~ '° (Referenz '
+                  ~ elevation_reference ~ '°)'] %}
+            {% endif %}
+          {% endif %}
+          Starlink meldet: {{ ns.issues | join('; ') }}. Bitte Antenne und Befestigung prüfen.
+
+  - if:
+      - condition: template
+        value_template: "{{ recovery_enabled }}"
+    then:
+      - repeat:
+          sequence:
+            - wait_template: >-
+                {% set orientation_configured = orientation_enabled
+                   and azimuth_sensor | length > 0
+                   and elevation_sensor | length > 0 %}
+                {% set orientation_valid = orientation_configured
+                   and is_number(states(azimuth_sensor))
+                   and is_number(states(elevation_sensor)) %}
+                {% set azimuth_delta = (((states(azimuth_sensor) | float(0)
+                   - azimuth_reference | float(0) + 180) % 360) - 180) | abs %}
+                {% set elevation_delta = (states(elevation_sensor) | float(0)
+                   - elevation_reference | float(0)) | abs %}
+                {{ is_state(unexpected_location_sensor, 'off')
+                   and is_state(mast_position_sensor, 'off')
+                   and is_state(impaired_sensor, 'off')
+                   and is_state(motors_stuck_sensor, 'off')
+                   and (not orientation_configured
+                        or (orientation_valid
+                            and azimuth_delta <= azimuth_tolerance | float(0)
+                            and elevation_delta <= elevation_tolerance | float(0))) }}
+            - delay: !input recovery_duration
+          until:
+            - condition: state
+              entity_id: !input unexpected_location_sensor
+              state: "off"
+            - condition: state
+              entity_id: !input mast_position_sensor
+              state: "off"
+            - condition: state
+              entity_id: !input impaired_sensor
+              state: "off"
+            - condition: state
+              entity_id: !input motors_stuck_sensor
+              state: "off"
+            - condition: template
+              value_template: >-
+                {% set orientation_configured = orientation_enabled
+                   and azimuth_sensor | length > 0
+                   and elevation_sensor | length > 0 %}
+                {% set orientation_valid = orientation_configured
+                   and is_number(states(azimuth_sensor))
+                   and is_number(states(elevation_sensor)) %}
+                {% set azimuth_delta = (((states(azimuth_sensor) | float(0)
+                   - azimuth_reference | float(0) + 180) % 360) - 180) | abs %}
+                {% set elevation_delta = (states(elevation_sensor) | float(0)
+                   - elevation_reference | float(0)) | abs %}
+                {{ not orientation_configured
+                   or (orientation_valid
+                       and azimuth_delta <= azimuth_tolerance | float(0)
+                       and elevation_delta <= elevation_tolerance | float(0)) }}
+
+      - action: script.turn_on
+        target:
+          entity_id: !input notification_script
+        data:
+          variables:
+            title: "{{ recovery_title }}"
+            message: >-
+              Alle überwachten Starlink-Werte sind wieder OK. Standort, Maststellung, Beeinträchtigung, Motoren und Ausrichtung werden nicht mehr als problematisch gemeldet.
+
+mode: single
+max_exceeded: silent
