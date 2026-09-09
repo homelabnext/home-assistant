@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Starlink Position Monitor v0.1.2"
+  name: "HomeLabNext – Starlink Position Monitor v0.1.3"
   description: >-
     Überwacht die Starlink-Diagnosesensoren **Unerwarteter Standort**,
     **Mast fast senkrecht**, **Beeinträchtigt** und **Motoren stecken fest**.
@@ -324,7 +324,7 @@ actions:
               or is_state(motors_stuck_sensor, 'on')
               or (orientation_valid
                   and (azimuth_delta > azimuth_tolerance | float(0)
-                       or elevation_delta > elevation_tolerance | float(0))))) }}
+                       or elevation_delta > elevation_tolerance | float(0)))) }}
 
   - action: script.turn_on
     target:
