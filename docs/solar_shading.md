@@ -1,6 +1,6 @@
 # HomeLabNext – Adaptive Solar Shading
 
-**Current version:** v0.1.5
+**Current version:** v0.1.6
 
 Adaptive Solar Shading is responsible only for temporary daytime shading.
 Normal morning/evening opening and closing belongs to the separate
@@ -81,3 +81,37 @@ The recovery reset now only runs outside the midnight trigger when:
 - its `last_changed` date is older than the current day.
 
 A counter already at `0` no longer blocks normal shading evaluation.
+
+
+## Outdoor temperature gate
+
+v0.1.6 changes the default thermal shading decision.
+
+### Required (recommended)
+
+With an illuminance sensor:
+
+`Outdoor temperature >= close threshold AND (Lux >= close threshold OR sun on facade)`
+
+Without an illuminance sensor:
+
+`Outdoor temperature >= close threshold AND sun on facade`
+
+Example:
+
+Lux = 73,706 lx ✓  
+Outdoor = 12.8 °C ✗  
+Sun position = ✓
+
+Result:
+
+`BLOCKED CLOSE | Outdoor temperature too low`
+
+### Legacy 2-of-3
+
+The previous behavior remains available as an option.
+
+### Release behavior
+
+In Required mode, falling below the outdoor release threshold is sufficient
+to release thermal shading.

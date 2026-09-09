@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Adaptive Solar Shading v0.1.5"
+  name: "HomeLabNext – Adaptive Solar Shading v0.1.6"
   description: >
     Universal adaptive solar shading for East, South and West facades.
 
@@ -8,6 +8,7 @@ blueprint:
     - Optional custom azimuth and solar elevation
     - Optional illuminance sensor
     - Outdoor temperature
+    - Outdoor temperature gate (required by default)
     - Solar azimuth / elevation
     - 2-of-3 logic with illuminance sensor
     - 2-of-2 logic without illuminance sensor
@@ -174,6 +175,25 @@ blueprint:
               filter:
                 - domain: sensor
                   device_class: temperature
+
+        temperature_gate_mode:
+          name: "Outdoor temperature gate"
+          description: >
+            Required (recommended): Outdoor temperature must reach the shading
+            threshold. In addition, either illuminance or solar position must
+            justify shading. If no illuminance sensor is configured, solar
+            position must match.
+
+            Legacy 2-of-3: Illuminance, outdoor temperature and solar position
+            are treated equally and any two positive signals can trigger shading.
+          default: required
+          selector:
+            select:
+              options:
+                - label: "Required (recommended)"
+                  value: required
+                - label: "Legacy 2-of-3"
+                  value: legacy_2_of_3
 
         lux_close:
           name: "Lux shading threshold"
@@ -583,6 +603,7 @@ variables:
 
   illuminance_sensor: !input illuminance_sensor
   outdoor_temperature_sensor: !input outdoor_temperature_sensor
+  temperature_gate_mode: !input temperature_gate_mode
   indoor_temperature_sensor: !input indoor_temperature_sensor
   temperature_trend_sensor: !input temperature_trend_sensor
 
@@ -834,32 +855,62 @@ actions:
         }}
 
       primary_close_requested: >
-        {% if lux_configured %}
-          {{
-            (valid_close_count | int) >= 2
-            and (positive_close_count | int) >= 2
-          }}
+        {% if temperature_gate_mode == 'required' %}
+          {% if lux_configured %}
+            {{
+              outdoor_valid
+              and outdoor_close_positive
+              and (lux_close_positive or sun_close_positive)
+            }}
+          {% else %}
+            {{
+              outdoor_valid
+              and sun_valid
+              and outdoor_close_positive
+              and sun_close_positive
+            }}
+          {% endif %}
         {% else %}
-          {{
-            outdoor_valid
-            and sun_valid
-            and outdoor_close_positive
-            and sun_close_positive
-          }}
+          {% if lux_configured %}
+            {{
+              (valid_close_count | int) >= 2
+              and (positive_close_count | int) >= 2
+            }}
+          {% else %}
+            {{
+              outdoor_valid
+              and sun_valid
+              and outdoor_close_positive
+              and sun_close_positive
+            }}
+          {% endif %}
         {% endif %}
 
       primary_release_requested: >
-        {% if lux_configured %}
-          {{
-            (valid_release_count | int) >= 2
-            and (positive_release_count | int) >= 2
-          }}
+        {% if temperature_gate_mode == 'required' %}
+          {% if lux_configured %}
+            {{
+              outdoor_release_positive
+              or (lux_release_positive and sun_release_positive)
+            }}
+          {% else %}
+            {{
+              outdoor_release_positive or sun_release_positive
+            }}
+          {% endif %}
         {% else %}
-          {{
-            outdoor_valid
-            and sun_valid
-            and (outdoor_release_positive or sun_release_positive)
-          }}
+          {% if lux_configured %}
+            {{
+              (valid_release_count | int) >= 2
+              and (positive_release_count | int) >= 2
+            }}
+          {% else %}
+            {{
+              outdoor_valid
+              and sun_valid
+              and (outdoor_release_positive or sun_release_positive)
+            }}
+          {% endif %}
         {% endif %}
 
       summer_active: >
@@ -1032,6 +1083,18 @@ actions:
           BLOCKED CLOSE | Window/door open
         {% elif not summer_active and not shading_active %}
           WINTER | Heat protection disabled
+        {% elif
+          temperature_gate_mode == 'required'
+          and day_mode_active
+          and summer_active
+          and outdoor_valid
+          and not outdoor_close_positive
+          and not shading_active
+        %}
+          BLOCKED CLOSE |
+          Outdoor={{ outdoor_temp|round(1) }}C <
+          {{ outdoor_temperature_close }}C |
+          Temperature gate required
         {% elif close_requested %}
           CLOSE READY |
           {{ orientation | upper }} |
@@ -1368,27 +1431,44 @@ actions:
                 }}
 
               re_close_primary: >
-                {% if illuminance_sensor != '' %}
-                  {{
-                    (
-                      (1 if re_lux_valid else 0)
-                      + (1 if re_out_valid else 0)
-                      + (1 if re_sun_valid else 0)
-                    ) >= 2
-                    and
-                    (
-                      (1 if re_lux_positive else 0)
-                      + (1 if re_out_positive else 0)
-                      + (1 if re_sun_positive else 0)
-                    ) >= 2
-                  }}
+                {% if temperature_gate_mode == 'required' %}
+                  {% if illuminance_sensor != '' %}
+                    {{
+                      re_out_valid
+                      and re_out_positive
+                      and (re_lux_positive or re_sun_positive)
+                    }}
+                  {% else %}
+                    {{
+                      re_out_valid
+                      and re_sun_valid
+                      and re_out_positive
+                      and re_sun_positive
+                    }}
+                  {% endif %}
                 {% else %}
-                  {{
-                    re_out_valid
-                    and re_sun_valid
-                    and re_out_positive
-                    and re_sun_positive
-                  }}
+                  {% if illuminance_sensor != '' %}
+                    {{
+                      (
+                        (1 if re_lux_valid else 0)
+                        + (1 if re_out_valid else 0)
+                        + (1 if re_sun_valid else 0)
+                      ) >= 2
+                      and
+                      (
+                        (1 if re_lux_positive else 0)
+                        + (1 if re_out_positive else 0)
+                        + (1 if re_sun_positive else 0)
+                      ) >= 2
+                    }}
+                  {% else %}
+                    {{
+                      re_out_valid
+                      and re_sun_valid
+                      and re_out_positive
+                      and re_sun_positive
+                    }}
+                  {% endif %}
                 {% endif %}
 
               re_room_ok: >
@@ -1555,26 +1635,39 @@ actions:
                 }}
 
               rel_primary: >
-                {% if illuminance_sensor != '' %}
-                  {{
-                    (
-                      (1 if rel_lux_valid else 0)
-                      + (1 if rel_out_valid else 0)
-                      + (1 if rel_sun_valid else 0)
-                    ) >= 2
-                    and
-                    (
-                      (1 if rel_lux_positive else 0)
-                      + (1 if rel_out_positive else 0)
-                      + (1 if rel_sun_positive else 0)
-                    ) >= 2
-                  }}
+                {% if temperature_gate_mode == 'required' %}
+                  {% if illuminance_sensor != '' %}
+                    {{
+                      rel_out_positive
+                      or (rel_lux_positive and rel_sun_positive)
+                    }}
+                  {% else %}
+                    {{
+                      rel_out_positive or rel_sun_positive
+                    }}
+                  {% endif %}
                 {% else %}
-                  {{
-                    rel_out_valid
-                    and rel_sun_valid
-                    and (rel_out_positive or rel_sun_positive)
-                  }}
+                  {% if illuminance_sensor != '' %}
+                    {{
+                      (
+                        (1 if rel_lux_valid else 0)
+                        + (1 if rel_out_valid else 0)
+                        + (1 if rel_sun_valid else 0)
+                      ) >= 2
+                      and
+                      (
+                        (1 if rel_lux_positive else 0)
+                        + (1 if rel_out_positive else 0)
+                        + (1 if rel_sun_positive else 0)
+                      ) >= 2
+                    }}
+                  {% else %}
+                    {{
+                      rel_out_valid
+                      and rel_sun_valid
+                      and (rel_out_positive or rel_sun_positive)
+                    }}
+                  {% endif %}
                 {% endif %}
 
               rel_room: >
