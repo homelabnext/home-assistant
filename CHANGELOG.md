@@ -17,6 +17,12 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Starlink Position Monitor
 
+### v0.1.3
+
+- Fixed malformed Jinja syntax in `actions[2].value_template`.
+- Removed an extra closing parenthesis that prevented Home Assistant from saving blueprint automations.
+- Validated delimiter balance across every Jinja template in the blueprint.
+
 ### v0.1.2
 
 - Replaced text selectors with standard blueprint text inputs for broader frontend compatibility.
