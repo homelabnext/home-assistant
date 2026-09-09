@@ -78,6 +78,16 @@ Daily waste collection reminder through the central notification script. Select 
 
 [![Open your Home Assistant instance and import this blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fwaste_collection_notification%2Fwaste_collection_notification.yaml)
 
+### Window Open Notification
+
+Notifies when selected window contacts remain open beyond a configurable duration. Optional reminders repeat independently per window until it closes or becomes unavailable. Uses the central notification script; no helpers required. Timers do not persist across reloads or restarts.
+
+**Current version:** v0.1.0
+
+[Blueprint file](blueprints/automation/window_open_notification/window_open_notification.yaml) · [Documentation](blueprints/automation/window_open_notification/README.md)
+
+[Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fwindow_open_notification%2Fwindow_open_notification.yaml)
+
 ## How the cover blueprints work together
 
 The blueprints are independent. If the same cover uses both, they can share one `input_boolean` as a Day Mode helper.
@@ -115,9 +125,12 @@ home-assistant/
 │       ├── starlink_position_notification/
 │       │   ├── README.md
 │       │   └── starlink_position_notification.yaml
-│       └── waste_collection_notification/
+│       ├── waste_collection_notification/
+│       │   ├── README.md
+│       │   └── waste_collection_notification.yaml
+│       └── window_open_notification/
 │           ├── README.md
-│           └── waste_collection_notification.yaml
+│           └── window_open_notification.yaml
 ├── packages/
 │   └── solar_shading_helpers.example.yaml
 ├── dashboards/
@@ -162,6 +175,7 @@ solar-shading-v0.1.3
 morning-evening-v0.1.1
 starlink-position-monitor-v0.1.4
 waste-collection-notification-v0.1.1
+window-open-notification-v0.1.0
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).

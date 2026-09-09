@@ -15,6 +15,18 @@ Blueprints are versioned independently. A repository restructuring does not chan
 - Added stable top-level directories for `packages`, `dashboards`, `templates` and `docs`.
 - Consolidated documentation so each blueprint keeps its primary documentation beside its YAML file.
 
+## Window Open Notification
+
+### v0.1.0
+
+- Added independently timed reminders for multiple window contacts.
+- Required a continuous configurable open duration before the first notification.
+- Added optional repeated reminders with a separate interval.
+- Stopped reminders on closing, unknown/unavailable states and rapid close/reopen cycles.
+- Passed the contact name and elapsed open minutes to the central notification script.
+- Added editable minute fields, import link and setup documentation; no helpers required.
+- Documented that pending timers and repetitions do not survive automation reloads or HA restarts.
+
 ## Waste Collection Notification
 
 ### v0.1.1
