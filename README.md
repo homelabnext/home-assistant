@@ -52,7 +52,7 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/mo
 
 Monitors Starlink location, mast alignment, obstruction/impairment, stuck motors and optional azimuth/elevation deviations. Notifications are sent through a configurable central Home Assistant notification script.
 
-**Current version:** v0.1.3
+**Current version:** v0.1.4
 
 **Blueprint file**
 
@@ -147,7 +147,7 @@ Blueprints are versioned independently. Release tags should identify both the co
 ```text
 solar-shading-v0.1.3
 morning-evening-v0.1.1
-starlink-position-monitor-v0.1.3
+starlink-position-monitor-v0.1.4
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).
