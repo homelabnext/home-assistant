@@ -44,7 +44,7 @@ message: "Notification text"
 | Warning delay | 2 minutes, editable as a number |
 | Recovery delay | 2 minutes, editable as a number |
 | Startup delay | 2 minutes, editable as a number |
-| Orientation check | Every 5 minutes, configurable |
+| Orientation confirmation | Continuous for the warning delay |
 | Azimuth tolerance | ±1° |
 | Elevation tolerance | ±1° |
 
@@ -72,4 +72,4 @@ Then reload automations / blueprints in Home Assistant.
 
 ## Version
 
-v0.1.3
+v0.1.4
