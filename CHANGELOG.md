@@ -17,6 +17,15 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Starlink Position Monitor
 
+### v0.1.4
+
+- Added continuous anti-flapping confirmation for all warning states.
+- Binary diagnostic sensors must remain problematic for the configured warning delay.
+- Azimuth and elevation deviations now use a template trigger with the same continuous warning delay.
+- Any return to normal, unknown or unavailable resets the pending warning.
+- Home Assistant startup recovery also requires a continuously confirmed problem.
+- Removed the periodic orientation polling interval because continuous state confirmation now handles orientation changes directly.
+
 ### v0.1.3
 
 - Fixed malformed Jinja syntax in `actions[2].value_template`.
