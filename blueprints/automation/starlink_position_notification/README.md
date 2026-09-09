@@ -9,7 +9,7 @@ The blueprint watches these Starlink diagnostic binary sensors:
 - Unexpected location
 - Mast near vertical
 - Obstructed / impaired
-- Motors stuck
+- Motors stuck (optional)
 
 It can additionally compare the current antenna orientation against configured reference angles:
 
@@ -41,14 +41,18 @@ message: "Notification text"
 
 | Setting | Default |
 |---|---:|
-| Warning delay | 2 minutes |
-| Recovery delay | 2 minutes |
-| Startup delay | 2 minutes |
+| Warning delay | 2 minutes, editable as a number |
+| Recovery delay | 2 minutes, editable as a number |
+| Startup delay | 2 minutes, editable as a number |
 | Orientation check | Every 5 minutes, configurable |
 | Azimuth tolerance | ±1° |
 | Elevation tolerance | ±1° |
 
 No helper entities are required.
+
+Notification titles use standard blueprint text inputs. Timing values use
+numeric minute inputs for compatibility with Home Assistant frontend versions
+that do not render the dedicated text or duration selectors correctly.
 
 ## Installation
 
@@ -68,4 +72,4 @@ Then reload automations / blueprints in Home Assistant.
 
 ## Version
 
-v0.1.1
+v0.1.2
