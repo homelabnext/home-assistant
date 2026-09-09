@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Starlink Position Monitor v0.1.0"
+  name: "HomeLabNext – Starlink Position Monitor v0.1.1"
   description: >-
     Überwacht die Starlink-Diagnosesensoren **Unerwarteter Standort**,
     **Mast fast senkrecht**, **Beeinträchtigt** und **Motoren stecken fest**.
@@ -164,6 +164,7 @@ blueprint:
           default: "⚠️ Starlink-Antenne verschoben"
           selector:
             text:
+              multiline: false
         recovery_enabled:
           name: "Entwarnung senden"
           description: >-
@@ -176,6 +177,7 @@ blueprint:
           default: "✅ Starlink-Antenne wieder in Ordnung"
           selector:
             text:
+              multiline: false
 
     timing:
       name: "Zeitverhalten"
@@ -188,25 +190,58 @@ blueprint:
             Der Fehler muss so lange ohne Unterbrechung bestehen. Verhindert
             Meldungen durch kurze Messfehler oder einen Starlink-Neustart.
           default:
+            hours: 0
             minutes: 2
+            seconds: 0
           selector:
             duration:
+              enable_day: false
+              enable_second: true
         recovery_duration:
           name: "Verzögerung bis zur Entwarnung"
           description: >-
             Beide Sensoren müssen so lange wieder OK sein.
           default:
+            hours: 0
             minutes: 2
+            seconds: 0
           selector:
             duration:
+              enable_day: false
+              enable_second: true
         startup_delay:
           name: "Wartezeit nach Home-Assistant-Neustart"
           description: >-
             Gibt der Starlink-Integration Zeit, gültige Zustände zu liefern.
           default:
+            hours: 0
             minutes: 2
+            seconds: 0
           selector:
             duration:
+              enable_day: false
+              enable_second: true
+        orientation_check_interval:
+          name: "Prüfintervall der Winkelüberwachung"
+          description: >-
+            Legt fest, wie oft Azimut und Elevation geprüft werden. Hat keinen
+            Einfluss auf die direkten Starlink-Fehlersensoren.
+          default: "/5"
+          selector:
+            select:
+              options:
+                - label: "Jede Minute"
+                  value: "/1"
+                - label: "Alle 2 Minuten"
+                  value: "/2"
+                - label: "Alle 5 Minuten"
+                  value: "/5"
+                - label: "Alle 10 Minuten"
+                  value: "/10"
+                - label: "Alle 15 Minuten"
+                  value: "/15"
+                - label: "Alle 30 Minuten"
+                  value: "/30"
 
 variables:
   unexpected_location_sensor: !input unexpected_location_sensor
@@ -220,6 +255,7 @@ variables:
   elevation_reference: !input elevation_reference
   azimuth_tolerance: !input azimuth_tolerance
   elevation_tolerance: !input elevation_tolerance
+  orientation_check_interval: !input orientation_check_interval
   notification_script: !input notification_script
   alert_title: !input alert_title
   recovery_enabled: !input recovery_enabled
@@ -251,7 +287,7 @@ triggers:
     id: problem
 
   - trigger: time_pattern
-    minutes: "/5"
+    minutes: !input orientation_check_interval
     id: orientation_check
 
   - trigger: homeassistant

@@ -17,6 +17,13 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Starlink Position Monitor
 
+### v0.1.1
+
+- Fixed missing input controls for notification titles and time durations in the Home Assistant blueprint editor.
+- Added explicit editable hours, minutes and seconds for warning, recovery and startup delays.
+- Added a configurable orientation check interval.
+- Updated blueprint UI defaults and documentation.
+
 ### v0.1.0
 
 - Initial public release.
