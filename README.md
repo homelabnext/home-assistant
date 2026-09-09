@@ -32,7 +32,7 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/so
 
 Daily opening and closing control for covers using sunrise/sunset or fixed schedules, weekday/weekend limits, vacation mode, window contacts, manual override and optional coordination with Adaptive Solar Shading.
 
-**Current version:** v0.1.2
+**Current version:** v0.1.1
 
 **Blueprint file**
 
@@ -52,7 +52,7 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/mo
 
 Monitors Starlink location, mast alignment, obstruction/impairment, stuck motors and optional azimuth/elevation deviations. Notifications are sent through a configurable central Home Assistant notification script.
 
-**Current version:** v0.1.1
+**Current version:** v0.1.2
 
 **Blueprint file**
 
