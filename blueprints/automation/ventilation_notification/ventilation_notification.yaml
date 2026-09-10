@@ -1,0 +1,328 @@
+blueprint:
+  name: HomeLabNext – Lüftungsempfehlung v0.1.0
+  description: >-
+    Feuchteabhängige Lüftungsempfehlung pro Raum über das zentrale Notify-Skript.
+    Vergleicht Innen- und Außenluft und erinnert an das Schließen.
+    Benötigt vier Sensoren (Temperatur in °C, Feuchtigkeit in %), Fensterkontakte
+    und einen eigenen Text-Helfer mit maximaler Länge 255 je Automation.
+    Alle Einstellungen sind unten editierbar. Kein Schimmelnachweis und keine
+    Bewertung von Wandoberflächen. Nach Neustart/Neuladen beginnen die
+    Bestätigungszeiten neu; die Überwachung startet automatisch wieder.
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/ventilation_notification/ventilation_notification.yaml
+  input:
+    room_name:
+      name: Raumname
+      default: Schlafzimmer
+    indoor_temperature:
+      name: Raumtemperatur (°C)
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+    indoor_humidity:
+      name: Raumluftfeuchtigkeit (%)
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: humidity
+    outdoor_temperature:
+      name: Außentemperatur (°C)
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+    outdoor_humidity:
+      name: Außenluftfeuchtigkeit (%)
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: humidity
+    windows:
+      name: Fensterkontakte dieses Raums
+      description: Einzelne Kontakte mit on = offen, off = geschlossen auswählen.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+    memory:
+      name: Text-Helfer für den Lüftungsstatus
+      description: >-
+        Vorher unter Einstellungen → Geräte & Dienste → Helfer einen Text-Helfer
+        mit maximaler Länge 255 anlegen. Pro Automation einen eigenen Helfer
+        verwenden. Den Inhalt verwaltet der Blueprint automatisch.
+      selector:
+        entity:
+          filter:
+            - domain: input_text
+    humidity_high:
+      name: Lüftungsbedarf ab (%)
+      default: 60
+      selector:
+        number:
+          min: 40
+          max: 85
+          step: 1
+          mode: box
+          unit_of_measurement: "%"
+    humidity_target:
+      name: Feuchteziel (%)
+      description: Muss kleiner als die Bedarfsschwelle sein. Beim Lüften auf die Temperatur vor dem Öffnen bezogen.
+      default: 55
+      selector:
+        number:
+          min: 30
+          max: 75
+          step: 1
+          mode: box
+          unit_of_measurement: "%"
+    drying_margin:
+      name: Mindest-Trocknungsvorteil (g/m³)
+      description: >-
+        Feuchteunterschied bei gleicher Raumtemperatur. Empfehlung ab diesem
+        Wert; sie bleibt bis zur Hälfte des Werts aktiv, um Pendeln zu vermeiden.
+      default: 1.0
+      selector:
+        number:
+          min: 0.2
+          max: 5
+          step: 0.1
+          mode: box
+          unit_of_measurement: g/m³
+    warning_minutes:
+      name: Bestätigung vor Lüftungsempfehlung (Minuten)
+      description: Der ermittelte Empfehlungszustand muss so lange ohne Unterbrechung bestehen.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+          mode: box
+          unit_of_measurement: min
+    close_minutes:
+      name: Bestätigung vor Schließhinweis (Minuten)
+      description: Gilt auch nach Erreichen der maximalen Lüftungszeit.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+          mode: box
+          unit_of_measurement: min
+    max_open_minutes:
+      name: Maximale Lüftungszeit (Minuten)
+      description: Danach folgt nach der Bestätigung ein Schließhinweis, auch wenn das Feuchteziel noch nicht erreicht ist.
+      default: 15
+      selector:
+        number:
+          min: 2
+          max: 120
+          step: 1
+          mode: box
+          unit_of_measurement: min
+    min_room_temperature:
+      name: Schließhinweis unter Raumtemperatur (°C)
+      default: 17
+      selector:
+        number:
+          min: 5
+          max: 25
+          step: 0.5
+          mode: box
+          unit_of_measurement: °C
+    notify_blocked:
+      name: Auch melden, wenn Lüften aktuell wenig bringt
+      default: true
+      selector:
+        boolean: {}
+    repeat_enabled:
+      name: Meldungen wiederholen
+      default: false
+      selector:
+        boolean: {}
+    repeat_minutes:
+      name: Mindestabstand gleicher Meldungen (Minuten)
+      description: Nur bei aktivierter Wiederholung. Die jeweilige Bedingung muss weiterhin bestätigt sein.
+      default: 60
+      selector:
+        number:
+          min: 5
+          max: 1440
+          step: 1
+          mode: box
+          unit_of_measurement: min
+    notification_script:
+      name: Zentrales Notify-Skript
+      default: script.home_notification
+      selector:
+        entity:
+          filter:
+            - domain: script
+
+mode: queued
+max: 50
+
+triggers:
+  - trigger: time_pattern
+    minutes: /1
+    id: tick
+  - trigger: state
+    entity_id: !input indoor_temperature
+    to: null
+    id: sensor
+  - trigger: state
+    entity_id: !input indoor_humidity
+    to: null
+    id: sensor
+  - trigger: state
+    entity_id: !input outdoor_temperature
+    to: null
+    id: sensor
+  - trigger: state
+    entity_id: !input outdoor_humidity
+    to: null
+    id: sensor
+  - trigger: state
+    entity_id: !input windows
+    to: null
+    id: window
+  - trigger: homeassistant
+    event: start
+    id: reset
+  - trigger: event
+    event_type: automation_reloaded
+    id: reset
+
+variables:
+  ti_entity: !input indoor_temperature
+  hi_entity: !input indoor_humidity
+  to_entity: !input outdoor_temperature
+  ho_entity: !input outdoor_humidity
+  contacts: !input windows
+  memory_entity: !input memory
+  high: !input humidity_high
+  target_humidity: !input humidity_target
+  margin_min: !input drying_margin
+  warning_delay: !input warning_minutes
+  close_delay: !input close_minutes
+  max_open: !input max_open_minutes
+  min_temp: !input min_room_temperature
+  blocked_enabled: !input notify_blocked
+  repeats: !input repeat_enabled
+  repeat_interval: !input repeat_minutes
+  room: !input room_name
+
+actions:
+  - condition: template
+    value_template: >-
+      {{ trigger is defined and trigger is mapping and trigger.get('id') is not none }}
+  - if:
+      - condition: template
+        value_template: >-
+          {{ target_humidity >= high or contacts | count == 0
+             or states(memory_entity) in ['unknown', 'unavailable']
+             or state_attr(memory_entity, 'max') | int(0) < 255 }}
+    then:
+      - stop: Feuchteziel muss kleiner als Bedarfsschwelle sein; Kontakte und verfügbaren Text-Helfer mit maximaler Länge 255 auswählen.
+        error: true
+  - variables:
+      result: >-
+        {% set ts = as_timestamp(now()) | int %}
+        {% set empty = dict(n=false, d=false, c='idle', t=ts, o=0, b=20, s=ts, v=0, w=0, x=0) %}
+        {% set raw = states(memory_entity) | from_json({}) %}
+        {% set old = raw if raw is mapping and raw.get('s') is number
+           and raw.get('t') is number and raw.get('o') is number
+           and raw.get('b') is number and raw.get('v') is number
+           and raw.get('w') is number and raw.get('x') is number
+           and raw.get('n') is boolean and raw.get('d') is boolean
+           and raw.get('c') in ['idle','vent','blocked','close'] else empty %}
+        {% set interrupted = trigger.id == 'reset' or ts - old.s > 180 or ts < old.s %}
+        {% set old = empty if interrupted else old %}
+        {# If a close/reopen was queued, do not carry the old ventilation timer forward. #}
+        {% if trigger.id == 'window' and trigger.to_state is not none
+              and trigger.to_state.state == 'off' and is_state(trigger.entity_id, 'on') %}
+          {% set old = empty %}
+        {% endif %}
+        {% set ti = states(ti_entity) | float(-999) %}
+        {% set hi = states(hi_entity) | float(-999) %}
+        {% set tout = states(to_entity) | float(-999) %}
+        {% set ho = states(ho_entity) | float(-999) %}
+        {% set ns = namespace(valid=true, opened=false) %}
+        {% for contact in contacts %}
+          {% if states(contact) not in ['on','off'] %}{% set ns.valid = false %}{% endif %}
+          {% if is_state(contact,'on') %}{% set ns.opened = true %}{% endif %}
+        {% endfor %}
+        {% set valid = ns.valid and -20 <= ti <= 60 and -50 <= tout <= 60
+           and 0 < hi <= 100 and 0 < ho <= 100
+           and state_attr(ti_entity,'unit_of_measurement') == '°C'
+           and state_attr(to_entity,'unit_of_measurement') == '°C'
+           and state_attr(hi_entity,'unit_of_measurement') == '%'
+           and state_attr(ho_entity,'unit_of_measurement') == '%' %}
+        {# A queued transient invalid reading must reset confirmation even after recovery. #}
+        {% if trigger.id in ['sensor','window'] and trigger.to_state is not none
+              and trigger.to_state.state in ['unknown','unavailable'] %}
+          {% set valid = false %}
+        {% endif %}
+        {% if not valid %}
+          {{ dict(memory=empty, send=false, code='invalid', message='') }}
+        {% else %}
+          {# Magnus saturation pressure over water in hPa; vapor pressure compares moisture at equal pressure. #}
+          {% set ei = (hi / 100) * 6.112 * (2.718281828459045 ** (17.62 * ti / (243.12 + ti))) %}
+          {% set eo = (ho / 100) * 6.112 * (2.718281828459045 ** (17.62 * tout / (243.12 + tout))) %}
+          {% set advantage = 216.7 * (ei - eo) / (273.15 + ti) %}
+          {% set opened_since = (old.o if old.o > 0 else ts) if ns.opened else 0 %}
+          {% set base_temp = old.b if ns.opened and old != empty else ti %}
+          {% set predicted = 100 * ei / (6.112 * (2.718281828459045 ** (17.62 * base_temp / (243.12 + base_temp)))) %}
+          {% set needed = hi >= high or (old.n and (ns.opened or hi > target_humidity)) %}
+          {% set drying = advantage >= margin_min or (old.d and advantage > margin_min / 2) %}
+          {% set reason = 'Die maximale Lüftungszeit ist erreicht.' if ns.opened and ts - opened_since >= max_open * 60
+             else 'Der Raum kühlt zu stark aus.' if ti <= min_temp
+             else 'Das Feuchteziel nach dem Wiederaufwärmen ist erreicht.' if predicted <= target_humidity
+             else 'Die Außenluft führt aktuell keine Feuchtigkeit mehr ab.' if advantage <= 0
+             else '' %}
+          {% set code = ('close' if reason else 'idle') if ns.opened
+             else ('vent' if drying else 'blocked') if needed else 'idle' %}
+          {% set since = old.t if old.c == code else ts %}
+          {% set vent_last = old.v if needed else 0 %}
+          {% set wet_last = old.w if needed else 0 %}
+          {% set close_last = old.x if ns.opened else 0 %}
+          {% set last = vent_last if code == 'vent' else wet_last if code == 'blocked' else close_last %}
+          {% set confirmed = ts - since >= (close_delay if code == 'close' else warning_delay) * 60 %}
+          {% set send = code != 'idle' and confirmed and (code != 'blocked' or blocked_enabled)
+             and (last == 0 or (repeats and ts - last >= repeat_interval * 60)) %}
+          {% set text = room ~ ': Bitte stoßlüften. Die Raumfeuchtigkeit beträgt ' ~ (hi | round(0))
+             ~ ' %. Die Außenluft ist ausreichend trockener.' if code == 'vent'
+             else room ~ ': Erhöhte Raumfeuchtigkeit (' ~ (hi | round(0))
+             ~ ' %). Lüften bietet aktuell zu wenig Trocknungsvorteil. Feuchtequellen prüfen; bei anhaltender Feuchte Entfeuchtung erwägen.' if code == 'blocked'
+             else room ~ ': Bitte Fenster schließen. ' ~ reason if code == 'close' else '' %}
+          {{ dict(memory=dict(n=needed, d=drying, c=code, t=since, o=opened_since,
+               b=base_temp | round(2), s=ts,
+               v=ts if send and code == 'vent' else vent_last,
+               w=ts if send and code == 'blocked' else wet_last,
+               x=ts if send and code == 'close' else close_last),
+               send=send, code=code, message=text) }}
+        {% endif %}
+  # Store before sending: a failing notification service cannot flood the next evaluations.
+  - action: input_text.set_value
+    target:
+      entity_id: !input memory
+    data:
+      value: "{{ result.memory | to_json }}"
+  - if:
+      - condition: template
+        value_template: "{{ result.send }}"
+    then:
+      - action: script.turn_on
+        target:
+          entity_id: !input notification_script
+        data:
+          variables:
+            title: "{{ '🪟 Fenster schließen' if result.code == 'close' else '💧 Lüftungsempfehlung' }}"
+            message: "{{ result.message }}"

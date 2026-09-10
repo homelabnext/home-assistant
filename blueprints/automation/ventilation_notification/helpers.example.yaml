@@ -1,0 +1,7 @@
+# Optional YAML alternative to creating a Text helper in the UI.
+# Merge under an existing input_text key; do not create duplicate top-level keys.
+input_text:
+  ventilation_state_bedroom:
+    name: Lüftungsstatus Schlafzimmer
+    max: 255
+    icon: mdi:air-filter

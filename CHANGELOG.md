@@ -15,6 +15,18 @@ Blueprints are versioned independently. A repository restructuring does not chan
 - Added stable top-level directories for `packages`, `dashboards`, `templates` and `docs`.
 - Consolidated documentation so each blueprint keeps its primary documentation beside its YAML file.
 
+## Ventilation Notification
+
+### v0.1.0
+
+- Added per-room humidity advice using indoor/outdoor vapor pressure and a configurable drying margin.
+- Added humidity and drying-margin hysteresis, continuous confirmation and optional repetitions.
+- Added closing advice based on reheating-adjusted humidity, cooling, drying potential and maximum opening time.
+- Added automatic observation recovery after startup/reload and suppression during invalid readings.
+- Added a dedicated Text helper per automation for timing and notification bookkeeping.
+- Added an import link, helper example, documentation and offline template behavior tests.
+- Documented physical limitations; this blueprint does not measure mold or wall-surface humidity.
+
 ## Window Open Notification
 
 ### v0.1.0

@@ -88,6 +88,16 @@ Notifies when selected window contacts remain open beyond a configurable duratio
 
 [Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fwindow_open_notification%2Fwindow_open_notification.yaml)
 
+### Ventilation Notification
+
+Room-specific humidity and ventilation advice based on indoor/outdoor moisture content, with closing reminders, confirmation delays and optional repeats. Requires one dedicated Text helper (maximum length 255) per automation. Automatically resumes observation after restarts.
+
+**Current version:** v0.1.0
+
+[Blueprint file](blueprints/automation/ventilation_notification/ventilation_notification.yaml) · [Documentation](blueprints/automation/ventilation_notification/README.md)
+
+[Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fventilation_notification%2Fventilation_notification.yaml)
+
 ## How the cover blueprints work together
 
 The blueprints are independent. If the same cover uses both, they can share one `input_boolean` as a Day Mode helper.
@@ -128,9 +138,13 @@ home-assistant/
 │       ├── waste_collection_notification/
 │       │   ├── README.md
 │       │   └── waste_collection_notification.yaml
-│       └── window_open_notification/
+│       ├── window_open_notification/
+│       │   ├── README.md
+│       │   └── window_open_notification.yaml
+│       └── ventilation_notification/
 │           ├── README.md
-│           └── window_open_notification.yaml
+│           ├── helpers.example.yaml
+│           └── ventilation_notification.yaml
 ├── packages/
 │   └── solar_shading_helpers.example.yaml
 ├── dashboards/
@@ -176,6 +190,7 @@ morning-evening-v0.1.1
 starlink-position-monitor-v0.1.4
 waste-collection-notification-v0.1.1
 window-open-notification-v0.1.0
+ventilation-notification-v0.1.0
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).
