@@ -1,0 +1,475 @@
+blueprint:
+  name: "Home Status Light"
+  description: >
+    Zentrale Statuslampe für Home Assistant.
+
+    Mehrere Binary-Sensoren können Kategorien zugeordnet werden.
+    Die höchste aktive Priorität bestimmt Farbe, Helligkeit und Verhalten
+    der Lampe.
+
+    Priorität:
+    Alarm > Kritisch > Warnung > Wartung > Aufmerksamkeit > Aufgabe > Normal
+
+    Typische Verwendung:
+    - Aufgabe: Müll rausstellen
+    - Aufmerksamkeit: Fenster/Tür offen
+    - Wartung: Batterie prüfen
+    - Warnung: Gefrierschrank / Starlink beeinträchtigt
+    - Kritisch: Wasser / Rauch
+    - Alarm: Alarmanlage ausgelöst
+
+    Bestätigungslogik wird außerhalb des Blueprints umgesetzt:
+    Sobald der zugehörige Binary-Sensor auf "off" geht, berechnet die
+    Statuslampe automatisch den nächsten aktiven Zustand.
+
+    Der Blueprint reagiert auch nach einem Home-Assistant-Neustart korrekt.
+  domain: automation
+  author: homelabnext
+  input:
+    status_light:
+      name: Statuslampe
+      description: RGB-Lampe, die als zentrale Statusanzeige verwendet wird.
+      selector:
+        target:
+          entity:
+            domain: light
+
+    task_sensors:
+      name: Aufgabe
+      description: "Offene Aufgaben, z. B. Müll rausstellen. Standardfarbe: Blau."
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+
+    attention_sensors:
+      name: Aufmerksamkeit
+      description: Dinge, die Aufmerksamkeit benötigen, z. B. Fenster länger offen.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+
+    maintenance_sensors:
+      name: Wartung
+      description: Wartungsaufgaben, z. B. Batterie schwach.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+
+    warning_sensors:
+      name: Warnung
+      description: Warnungen, z. B. Gefrierschrank zu warm oder Verbindung beeinträchtigt.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+
+    critical_sensors:
+      name: Kritisch
+      description: Kritische Zustände, z. B. Wasser oder Rauch.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+
+    alarm_sensors:
+      name: Alarm
+      description: Höchste Priorität, z. B. ausgelöste Alarmanlage.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+
+    task_color:
+      name: Farbe – Aufgabe
+      default: [0, 90, 255]
+      selector:
+        color_rgb:
+
+    attention_color:
+      name: Farbe – Aufmerksamkeit
+      default: [255, 110, 0]
+      selector:
+        color_rgb:
+
+    maintenance_color:
+      name: Farbe – Wartung
+      default: [170, 70, 255]
+      selector:
+        color_rgb:
+
+    warning_color:
+      name: Farbe – Warnung
+      default: [255, 45, 0]
+      selector:
+        color_rgb:
+
+    critical_color:
+      name: Farbe – Kritisch
+      default: [255, 0, 0]
+      selector:
+        color_rgb:
+
+    alarm_color:
+      name: Farbe – Alarm
+      default: [255, 0, 0]
+      selector:
+        color_rgb:
+
+    task_brightness:
+      name: Helligkeit – Aufgabe
+      default: 40
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    attention_brightness:
+      name: Helligkeit – Aufmerksamkeit
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    maintenance_brightness:
+      name: Helligkeit – Wartung
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    warning_brightness:
+      name: Helligkeit – Warnung
+      default: 70
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    critical_brightness:
+      name: Helligkeit – Kritisch
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    alarm_brightness:
+      name: Helligkeit – Alarm
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    critical_blink:
+      name: Kritisch blinken
+      description: Kritische Zustände durch Ein/Aus-Blinken hervorheben.
+      default: false
+      selector:
+        boolean:
+
+    alarm_blink:
+      name: Alarm blinken
+      description: Alarmzustände durch Ein/Aus-Blinken hervorheben.
+      default: true
+      selector:
+        boolean:
+
+    blink_interval:
+      name: Blinkintervall
+      description: Zeit zwischen Ein und Aus beim Blinken.
+      default: 0.7
+      selector:
+        number:
+          min: 0.3
+          max: 3
+          step: 0.1
+          unit_of_measurement: s
+          mode: slider
+
+    normal_on:
+      name: Lampe im Normalzustand eingeschaltet lassen
+      description: "Aus = Lampe ist ohne aktiven Status aus. Ein = warmweißes Normallicht."
+      default: false
+      selector:
+        boolean:
+
+    normal_brightness:
+      name: Helligkeit – Normal
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+    normal_kelvin:
+      name: Farbtemperatur – Normal
+      default: 2700
+      selector:
+        number:
+          min: 2000
+          max: 6500
+          step: 100
+          unit_of_measurement: K
+          mode: slider
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  task_entities: !input task_sensors
+  attention_entities: !input attention_sensors
+  maintenance_entities: !input maintenance_sensors
+  warning_entities: !input warning_sensors
+  critical_entities: !input critical_sensors
+  alarm_entities: !input alarm_sensors
+
+  task_rgb: !input task_color
+  attention_rgb: !input attention_color
+  maintenance_rgb: !input maintenance_color
+  warning_rgb: !input warning_color
+  critical_rgb: !input critical_color
+  alarm_rgb: !input alarm_color
+
+  task_pct: !input task_brightness
+  attention_pct: !input attention_brightness
+  maintenance_pct: !input maintenance_brightness
+  warning_pct: !input warning_brightness
+  critical_pct: !input critical_brightness
+  alarm_pct: !input alarm_brightness
+
+  critical_should_blink: !input critical_blink
+  alarm_should_blink: !input alarm_blink
+  blink_seconds: !input blink_interval
+
+  normal_enabled: !input normal_on
+  normal_pct: !input normal_brightness
+  normal_temp: !input normal_kelvin
+
+trigger:
+  - platform: event
+    event_type: state_changed
+    id: watched_state
+
+  - platform: homeassistant
+    event: start
+    id: startup
+
+condition:
+  - condition: template
+    value_template: >
+      {% if trigger.id == 'startup' %}
+        true
+      {% else %}
+        {% set watched =
+          task_entities
+          + attention_entities
+          + maintenance_entities
+          + warning_entities
+          + critical_entities
+          + alarm_entities
+        %}
+        {{ trigger.event.data.entity_id in watched }}
+      {% endif %}
+
+action:
+  - variables:
+      current_level: >
+        {% if alarm_entities | length > 0
+              and (expand(alarm_entities)
+                   | selectattr('state', 'eq', 'on')
+                   | list | count > 0) %}
+          alarm
+        {% elif critical_entities | length > 0
+              and (expand(critical_entities)
+                   | selectattr('state', 'eq', 'on')
+                   | list | count > 0) %}
+          critical
+        {% elif warning_entities | length > 0
+              and (expand(warning_entities)
+                   | selectattr('state', 'eq', 'on')
+                   | list | count > 0) %}
+          warning
+        {% elif maintenance_entities | length > 0
+              and (expand(maintenance_entities)
+                   | selectattr('state', 'eq', 'on')
+                   | list | count > 0) %}
+          maintenance
+        {% elif attention_entities | length > 0
+              and (expand(attention_entities)
+                   | selectattr('state', 'eq', 'on')
+                   | list | count > 0) %}
+          attention
+        {% elif task_entities | length > 0
+              and (expand(task_entities)
+                   | selectattr('state', 'eq', 'on')
+                   | list | count > 0) %}
+          task
+        {% else %}
+          normal
+        {% endif %}
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ current_level == 'alarm' }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ alarm_should_blink }}"
+                sequence:
+                  - repeat:
+                      while:
+                        - condition: template
+                          value_template: >
+                            {{ alarm_entities | length > 0
+                               and (expand(alarm_entities)
+                                    | selectattr('state', 'eq', 'on')
+                                    | list | count > 0) }}
+                      sequence:
+                        - service: light.turn_on
+                          target: !input status_light
+                          data:
+                            rgb_color: "{{ alarm_rgb }}"
+                            brightness_pct: "{{ alarm_pct }}"
+                        - delay:
+                            seconds: "{{ blink_seconds }}"
+                        - service: light.turn_off
+                          target: !input status_light
+                        - delay:
+                            seconds: "{{ blink_seconds }}"
+            default:
+              - service: light.turn_on
+                target: !input status_light
+                data:
+                  rgb_color: "{{ alarm_rgb }}"
+                  brightness_pct: "{{ alarm_pct }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ current_level == 'critical' }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ critical_should_blink }}"
+                sequence:
+                  - repeat:
+                      while:
+                        - condition: template
+                          value_template: >
+                            {{ critical_entities | length > 0
+                               and (expand(critical_entities)
+                                    | selectattr('state', 'eq', 'on')
+                                    | list | count > 0)
+                               and not (
+                                 alarm_entities | length > 0
+                                 and (expand(alarm_entities)
+                                      | selectattr('state', 'eq', 'on')
+                                      | list | count > 0)
+                               ) }}
+                      sequence:
+                        - service: light.turn_on
+                          target: !input status_light
+                          data:
+                            rgb_color: "{{ critical_rgb }}"
+                            brightness_pct: "{{ critical_pct }}"
+                        - delay:
+                            seconds: "{{ blink_seconds }}"
+                        - service: light.turn_off
+                          target: !input status_light
+                        - delay:
+                            seconds: "{{ blink_seconds }}"
+            default:
+              - service: light.turn_on
+                target: !input status_light
+                data:
+                  rgb_color: "{{ critical_rgb }}"
+                  brightness_pct: "{{ critical_pct }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ current_level == 'warning' }}"
+        sequence:
+          - service: light.turn_on
+            target: !input status_light
+            data:
+              rgb_color: "{{ warning_rgb }}"
+              brightness_pct: "{{ warning_pct }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ current_level == 'maintenance' }}"
+        sequence:
+          - service: light.turn_on
+            target: !input status_light
+            data:
+              rgb_color: "{{ maintenance_rgb }}"
+              brightness_pct: "{{ maintenance_pct }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ current_level == 'attention' }}"
+        sequence:
+          - service: light.turn_on
+            target: !input status_light
+            data:
+              rgb_color: "{{ attention_rgb }}"
+              brightness_pct: "{{ attention_pct }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ current_level == 'task' }}"
+        sequence:
+          - service: light.turn_on
+            target: !input status_light
+            data:
+              rgb_color: "{{ task_rgb }}"
+              brightness_pct: "{{ task_pct }}"
+
+    default:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ normal_enabled }}"
+            sequence:
+              - service: light.turn_on
+                target: !input status_light
+                data:
+                  color_temp_kelvin: "{{ normal_temp }}"
+                  brightness_pct: "{{ normal_pct }}"
+        default:
+          - service: light.turn_off
+            target: !input status_light
