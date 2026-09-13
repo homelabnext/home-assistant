@@ -1,0 +1,179 @@
+blueprint:
+  name: HomeLabNext – Alexa Musik bei Bewegung v0.1.0
+  description: >-
+    Setzt auf einem Echo mit Alexa Media Player die Wiedergabe bei Bewegung fort
+    und pausiert nach X Minuten ohne Bewegung. Bereits laufende Musik bleibt
+    unverändert. Bei gestopptem Echo wird zuerst Play versucht; startet nichts,
+    kann die Alexa-Routine Radio Chillout als Rückfall starten. Pausierte Musik
+    wird ausschließlich fortgesetzt, damit keine Playlist neu gestartet wird.
+    Keine Helper nötig. Einen dedizierten Echo auswählen: Auch manuell gestartete
+    Musik wird bei längerer Abwesenheit pausiert. Live-Radio spielt beim
+    Fortsetzen üblicherweise den aktuellen Stream, keine gespeicherte Position.
+  domain: automation
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/alexa_motion_music/alexa_motion_music.yaml
+  input:
+    motion_sensor:
+      name: Bewegungs- oder Präsenzsensor
+      description: Sensor im Gäste-WC mit on = Bewegung/Anwesenheit, off = keine Bewegung.
+      selector:
+        entity:
+          filter:
+            - domain: binary_sensor
+    echo:
+      name: Alexa Echo
+      description: Media-Player-Entität des gewünschten Echos aus Alexa Media Player auswählen.
+      selector:
+        entity:
+          filter:
+            - domain: media_player
+              integration: alexa_media
+    pause_minutes:
+      name: Pause nach (Minuten ohne Bewegung)
+      description: Neue Bewegung setzt die Wartezeit zurück. Im WC ausreichend lang wählen, da ein Bewegungsmelder stilles Sitzen nicht erkennt.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: box
+          unit_of_measurement: min
+    routine_enabled:
+      name: Bei gestopptem Echo auf Routine zurückfallen
+      description: Nur wenn Play bei idle/off/standby nichts startet. Bei paused wird die Routine nicht aufgerufen.
+      default: true
+      selector:
+        boolean: {}
+    routine_name:
+      name: Name der Alexa-Routine
+      description: Exakter Name einer vorhandenen Alexa-Routine. Die Routine muss Musik auf dem ausgewählten Echo starten.
+      default: Radio Chillout
+    resume_seconds:
+      name: Wartezeit nach Play (Sekunden)
+      description: Gibt Alexa Zeit, den Status zu aktualisieren, bevor bei gestopptem Echo die Routine gestartet wird.
+      default: 15
+      selector:
+        number:
+          min: 5
+          max: 45
+          step: 1
+          mode: box
+          unit_of_measurement: s
+    set_volume:
+      name: Lautstärke beim Start/Fortsetzen einstellen
+      default: false
+      selector:
+        boolean: {}
+    volume_percent:
+      name: Lautstärke (%)
+      description: Nur bei aktivierter Lautstärkeeinstellung; laufende Musik wird bei weiterer Bewegung nicht verändert.
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: box
+          unit_of_measurement: "%"
+
+mode: restart
+
+variables:
+  motion: !input motion_sensor
+  player: !input echo
+  pause_after: !input pause_minutes
+  fallback_enabled: !input routine_enabled
+  routine: !input routine_name
+  change_volume: !input set_volume
+  volume: !input volume_percent
+
+triggers:
+  - trigger: state
+    entity_id: !input motion_sensor
+    to: "on"
+    id: motion
+  - trigger: state
+    entity_id: !input motion_sensor
+    to: "off"
+    for:
+      minutes: !input pause_minutes
+    id: pause
+  - trigger: state
+    entity_id: !input motion_sensor
+    to: "unknown"
+    id: cancel
+  - trigger: state
+    entity_id: !input motion_sensor
+    to: "unavailable"
+    id: cancel
+  # Recovers the pause check after reload/startup without starting music.
+  - trigger: time_pattern
+    minutes: /1
+    id: watchdog
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger is defined and trigger is mapping and
+         (trigger.get('id') != 'watchdog' or
+          (is_state(motion, 'off') and is_state(player, 'playing') and
+           as_timestamp(now()) - as_timestamp(states[motion].last_changed) >= pause_after * 60)) }}
+
+actions:
+  - condition: template
+    value_template: "{{ trigger is defined and trigger is mapping and trigger.get('id') in ['motion', 'pause', 'watchdog'] }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'motion' and is_state(motion, 'on') }}"
+        sequence:
+          - variables:
+              initial_state: "{{ states(player) }}"
+          - condition: template
+            value_template: "{{ initial_state in ['paused', 'idle', 'off', 'standby'] }}"
+          - if:
+              - condition: template
+                value_template: "{{ change_volume }}"
+            then:
+              - action: media_player.volume_set
+                continue_on_error: true
+                target:
+                  entity_id: !input echo
+                data:
+                  volume_level: "{{ volume / 100 }}"
+          - action: media_player.media_play
+            continue_on_error: true
+            target:
+              entity_id: !input echo
+          - condition: template
+            value_template: >-
+              {{ initial_state in ['idle', 'off', 'standby']
+                 and fallback_enabled and routine | trim | length > 0 }}
+          - wait_template: >-
+              {{ states(player) in ['playing', 'buffering', 'unknown', 'unavailable']
+                 or states(motion) not in ['on', 'off'] }}
+            timeout:
+              seconds: !input resume_seconds
+            continue_on_timeout: true
+          - condition: template
+            value_template: >-
+              {{ not wait.completed and states(player) in ['idle', 'off', 'standby', 'paused']
+                 and (is_state(motion, 'on') or
+                      (is_state(motion, 'off') and
+                       as_timestamp(now()) - as_timestamp(states[motion].last_changed) < pause_after * 60)) }}
+          - action: media_player.play_media
+            target:
+              entity_id: !input echo
+            data:
+              media_content_id: !input routine_name
+              media_content_type: routine
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ trigger.id in ['pause', 'watchdog'] and is_state(motion, 'off')
+                 and is_state(player, 'playing') and
+                 as_timestamp(now()) - as_timestamp(states[motion].last_changed) >= pause_after * 60 }}
+        sequence:
+          - action: media_player.media_pause
+            target:
+              entity_id: !input echo

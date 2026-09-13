@@ -4,6 +4,17 @@ All notable changes to the HomeLabNext Home Assistant repository are documented 
 
 Blueprints are versioned independently. A repository restructuring does not change blueprint behavior or blueprint versions unless explicitly stated.
 
+## Alexa Motion Music
+
+### v0.1.0
+
+- Added motion-triggered resume and delayed pause for Alexa Media Player Echo devices.
+- Kept paused playback on Play only; existing playing/buffering sessions are left unchanged.
+- Added optional routine fallback from stopped states after a configurable resume timeout, default Radio Chillout.
+- Added optional volume control on resume/start and suppression for unavailable states.
+- Added a periodic pause check after reloads and restarts without automatically starting music.
+- Added documentation, import link and offline decision-template tests.
+
 ## Repository
 
 ### 2026-08-15
