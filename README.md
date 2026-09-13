@@ -98,6 +98,16 @@ Room-specific humidity and ventilation advice based on indoor/outdoor moisture c
 
 [Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fventilation_notification%2Fventilation_notification.yaml)
 
+### Alexa Motion Music
+
+Resume an Alexa Media Player Echo on motion and pause after a configurable period without motion. Optional fallback to an existing Alexa routine (default: Radio Chillout), optional volume setting and periodic pause recovery. No helpers required.
+
+**Current version:** v0.1.0
+
+[Blueprint file](blueprints/automation/alexa_motion_music/alexa_motion_music.yaml) · [Documentation](blueprints/automation/alexa_motion_music/README.md)
+
+[Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Falexa_motion_music%2Falexa_motion_music.yaml)
+
 ## How the cover blueprints work together
 
 The blueprints are independent. If the same cover uses both, they can share one `input_boolean` as a Day Mode helper.
@@ -141,10 +151,13 @@ home-assistant/
 │       ├── window_open_notification/
 │       │   ├── README.md
 │       │   └── window_open_notification.yaml
-│       └── ventilation_notification/
+│       ├── ventilation_notification/
+│       │   ├── README.md
+│       │   ├── helpers.example.yaml
+│       │   └── ventilation_notification.yaml
+│       └── alexa_motion_music/
 │           ├── README.md
-│           ├── helpers.example.yaml
-│           └── ventilation_notification.yaml
+│           └── alexa_motion_music.yaml
 ├── packages/
 │   └── solar_shading_helpers.example.yaml
 ├── dashboards/
@@ -191,6 +204,7 @@ starlink-position-monitor-v0.1.4
 waste-collection-notification-v0.1.1
 window-open-notification-v0.1.0
 ventilation-notification-v0.1.0
+alexa-motion-music-v0.1.0
 ```
 
 Repository-wide structural changes are documented separately in [CHANGELOG.md](CHANGELOG.md).
