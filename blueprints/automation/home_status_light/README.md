@@ -1,6 +1,6 @@
 # Home Status Light
 
-**Version: v0.1.0**
+**Version: v0.1.1**
 
 Zentrale Statuslampe für Home Assistant. Mehrere Binary-Sensoren werden Kategorien zugeordnet; die höchste aktive Priorität bestimmt Farbe, Helligkeit und optionales Blinken der ausgewählten RGB-Lampe.
 
@@ -32,6 +32,14 @@ Bei mehreren gleichzeitig aktiven Zuständen gewinnt immer die höchste Priorit�
 
 Farben und Helligkeiten können in der Blueprint-Instanz angepasst werden. Für Kritisch und Alarm kann Blinken separat aktiviert werden.
 
+## Zeitsteuerung für Aufgaben
+
+Für die Kategorie **Aufgabe** gibt es die Einstellung **Aufgabe – früheste Anzeigezeit**. Standard ist `17:00:00`.
+
+Das ist besonders für Müll geeignet: Ein Müll-Binary-Sensor kann bereits direkt nach Mitternacht auf `on` wechseln, die Statuslampe bleibt aber bis zur eingestellten Uhrzeit aus. Zur eingestellten Uhrzeit prüft der Blueprint den Status automatisch erneut und schaltet die Lampe ein, wenn weiterhin eine offene Aufgabe vorhanden ist.
+
+Andere Kategorien wie Warnung, Kritisch oder Alarm sind von dieser Zeitbegrenzung nicht betroffen.
+
 ## Voraussetzungen
 
 - Eine Home-Assistant-Light-Entität mit RGB-Farbunterstützung.
@@ -49,11 +57,11 @@ binary_sensor.lvp_rausstellen
 binary_sensor.restmull_rausstellen
 ```
 
-Solange mindestens einer dieser Sensoren `on` ist, leuchtet die Statuslampe standardmäßig blau. Wird die Aufgabe am Dashboard bestätigt und der zugehörige Binary-Sensor dadurch `off`, berechnet der Blueprint den Status sofort neu. Sind keine weiteren Zustände aktiv, wird die Lampe ausgeschaltet.
+Solange mindestens einer dieser Sensoren `on` ist und die eingestellte Startzeit erreicht wurde, leuchtet die Statuslampe standardmäßig blau. Wird die Aufgabe am Dashboard bestätigt und der zugehörige Binary-Sensor dadurch `off`, berechnet der Blueprint den Status sofort neu. Sind keine weiteren Zustände aktiv, wird die Lampe ausgeschaltet.
 
 ## Neustartverhalten
 
-Der Blueprint wird bei einem Home-Assistant-Start ebenfalls ausgeführt und berechnet den aktuellen Status neu. Damit wird nach einem Neustart nicht erst auf die nächste Zustandsänderung gewartet.
+Der Blueprint wird bei einem Home-Assistant-Start ebenfalls ausgeführt und berechnet den aktuellen Status neu. Vor der eingestellten Aufgabe-Startzeit bleibt eine reine Aufgabenanzeige aus; nach der Startzeit wird sie bei einem Neustart direkt wiederhergestellt.
 
 ## Manuelle Installation
 
@@ -61,4 +69,4 @@ Die YAML-Datei kann alternativ unter `/config/blueprints/automation/homelabnext/
 
 ## Stand
 
-Version `v0.1.0` ist die erste Basisversion. Aktuell vorgesehen sind Binary-Sensoren als Eingaben. Weitere Statusquellen und Funktionen können später ergänzt werden, ohne die Prioritätslogik grundsätzlich zu ändern.
+Version `v0.1.1` ergänzt eine frei einstellbare Startzeit für die Kategorie Aufgabe. Dadurch kann z. B. Müll erst am Nachmittag oder Abend optisch signalisiert werden, obwohl der zugrunde liegende Binary-Sensor bereits seit Mitternacht aktiv ist.
