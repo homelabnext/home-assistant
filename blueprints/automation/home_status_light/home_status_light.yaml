@@ -18,6 +18,10 @@ blueprint:
     - Kritisch: Wasser / Rauch
     - Alarm: Alarmanlage ausgelöst
 
+    Aufgaben können erst ab einer frei einstellbaren Tageszeit angezeigt
+    werden. Das ist z. B. für Müll sinnvoll, damit die Statuslampe nicht
+    bereits um Mitternacht einschaltet.
+
     Bestätigungslogik wird außerhalb des Blueprints umgesetzt:
     Sobald der zugehörige Binary-Sensor auf "off" geht, berechnet die
     Statuslampe automatisch den nächsten aktiven Zustand.
@@ -43,6 +47,16 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+
+    task_start_time:
+      name: Aufgabe – früheste Anzeigezeit
+      description: >
+        Aufgaben werden erst ab dieser Tageszeit an der Statuslampe angezeigt.
+        Beispiel: 17:00 verhindert, dass eine Müll-Erinnerung bereits ab
+        Mitternacht blau leuchtet.
+      default: "17:00:00"
+      selector:
+        time:
 
     attention_sensors:
       name: Aufmerksamkeit
@@ -249,6 +263,7 @@ max_exceeded: silent
 
 variables:
   task_entities: !input task_sensors
+  task_time: !input task_start_time
   attention_entities: !input attention_sensors
   maintenance_entities: !input maintenance_sensors
   warning_entities: !input warning_sensors
@@ -282,6 +297,10 @@ trigger:
     event_type: state_changed
     id: watched_state
 
+  - platform: time
+    at: !input task_start_time
+    id: task_start
+
   - platform: homeassistant
     event: start
     id: startup
@@ -289,7 +308,7 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {% if trigger.id == 'startup' %}
+      {% if trigger.id in ['startup', 'task_start'] %}
         true
       {% else %}
         {% set watched =
@@ -332,6 +351,7 @@ action:
                    | list | count > 0) %}
           attention
         {% elif task_entities | length > 0
+              and now().strftime('%H:%M:%S') >= task_time
               and (expand(task_entities)
                    | selectattr('state', 'eq', 'on')
                    | list | count > 0) %}
