@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.3
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.4
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -10,7 +10,9 @@ blueprint:
     - Day Mode helper (input_boolean): only needed when this cover should hand
       daytime control over to HomeLabNext Adaptive Solar Shading.
     - Debug status helper (input_text): shows what the automation is doing.
-    - Manual override (input_boolean): suppresses automatic movement while ON.
+    - Manual override (input_boolean): automatically activated when the cover is
+      moved manually. Automatic movement is suppressed until the next regular
+      morning opening or the optional fallback timeout.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
     - Missed-trigger recovery: checks every 5 minutes whether an evening
@@ -68,6 +70,21 @@ blueprint:
         entity:
           filter:
             - domain: input_boolean
+
+    manual_override_duration:
+      name: Manual override fallback duration
+      description: >-
+        Safety fallback in hours. A manually activated override is automatically
+        cleared after this time if no regular morning opening occurred first.
+        Set to 0 to disable the timeout.
+      default: 12
+      selector:
+        number:
+          min: 0
+          max: 24
+          step: 1
+          unit_of_measurement: h
+          mode: slider
 
     vacation_mode:
       name: Vacation mode
@@ -210,6 +227,7 @@ variables:
   day_mode_helper: !input day_mode_helper
   debug_status_helper: !input debug_status_helper
   manual_override: !input manual_override
+  manual_override_duration: !input manual_override_duration
   vacation_mode: !input vacation_mode
   window_contacts: !input window_contacts
   enable_morning: !input enable_morning
@@ -275,6 +293,10 @@ triggers:
     entity_id: !input window_contacts
     to: "off"
     id: window_closed
+
+  - trigger: state
+    entity_id: !input cover_entity
+    id: cover_state_changed
 
   - trigger: homeassistant
     event: start
@@ -342,12 +364,78 @@ actions:
         {% set pos = state_attr(cover_entity, 'current_position') %}
         {{ is_state(cover_entity, 'closed') or
            (pos is not none and (pos | int) <= (close_position | int)) }}
+      cover_change_from_this_automation: >-
+        {{ trigger.id == 'cover_state_changed' and
+           trigger.to_state is not none and
+           trigger.to_state.context.parent_id == this.context.id }}
+      cover_change_is_manual: >-
+        {{ trigger.id == 'cover_state_changed' and
+           trigger.to_state is not none and
+           trigger.to_state.context.parent_id != this.context.id }}
+      override_timeout_reached: >-
+        {{ manual_override != '' and is_state(manual_override, 'on') and
+           (manual_override_duration | int) > 0 and
+           (as_timestamp(now()) - as_timestamp(states[manual_override].last_changed)) >=
+           ((manual_override_duration | int) * 3600) }}
+
+  - if:
+      - condition: trigger
+        id: recovery_check
+      - condition: template
+        value_template: "{{ override_timeout_reached }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: "{{ manual_override }}"
+      - if:
+          - condition: template
+            value_template: "{{ debug_status_helper != '' }}"
+        then:
+          - action: input_text.set_value
+            target:
+              entity_id: "{{ debug_status_helper }}"
+            data:
+              value: "Manual override – fallback timeout expired"
 
   - choose:
+      # A cover state change without this automation as parent context is treated
+      # as a manual/external movement and activates the optional override helper.
+      - conditions:
+          - condition: trigger
+            id: cover_state_changed
+          - condition: template
+            value_template: "{{ manual_override != '' and cover_change_is_manual }}"
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: "{{ manual_override }}"
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Manual override – manual cover movement detected"
+
+      # Ignore state changes caused by this automation's own cover service calls.
+      - conditions:
+          - condition: trigger
+            id: cover_state_changed
+          - condition: template
+            value_template: "{{ cover_change_from_this_automation }}"
+        sequence:
+          - stop: "Cover movement initiated by this automation"
+
       # Manual override: never move a cover automatically.
       - conditions:
           - condition: template
             value_template: "{{ override_active_now }}"
+          - condition: template
+            value_template: >-
+              {{ trigger.id not in ['sunrise', 'weekday_morning', 'weekend_morning',
+                                    'vacation_morning'] }}
         sequence:
           - if:
               - condition: template
@@ -367,6 +455,13 @@ actions:
             id:
               - vacation_morning
         sequence:
+          - if:
+              - condition: template
+                value_template: "{{ manual_override != '' and is_state(manual_override, 'on') }}"
+            then:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ manual_override }}"
           - action: cover.set_cover_position
             target:
               entity_id: !input cover_entity
@@ -445,6 +540,13 @@ actions:
                  (morning_mode == 'sun_not_before' and
                   now().strftime('%H:%M:%S') >= morning_time_now) }}
         sequence:
+          - if:
+              - condition: template
+                value_template: "{{ manual_override != '' and is_state(manual_override, 'on') }}"
+            then:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ manual_override }}"
           - action: cover.set_cover_position
             target:
               entity_id: !input cover_entity
@@ -490,6 +592,13 @@ actions:
               {{ morning_mode == 'time' or
                  (morning_mode == 'sun_not_before' and is_state('sun.sun', 'above_horizon')) }}
         sequence:
+          - if:
+              - condition: template
+                value_template: "{{ manual_override != '' and is_state(manual_override, 'on') }}"
+            then:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ manual_override }}"
           - action: cover.set_cover_position
             target:
               entity_id: !input cover_entity
