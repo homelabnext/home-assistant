@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.4
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.5
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -10,9 +10,10 @@ blueprint:
     - Day Mode helper (input_boolean): only needed when this cover should hand
       daytime control over to HomeLabNext Adaptive Solar Shading.
     - Debug status helper (input_text): shows what the automation is doing.
-    - Manual override (input_boolean): automatically activated when the cover is
-      moved manually. Automatic movement is suppressed until the next regular
-      morning opening or the optional fallback timeout.
+    - Manual override (input_boolean): explicit manual lockout. Optionally detect
+      direct Home Assistant UI actions; physical switch movement cannot reliably
+      be distinguished from integration feedback and is NOT auto-detected.
+      The helper resets at the next morning boundary or fallback timeout.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
     - Missed-trigger recovery: checks every 5 minutes whether an evening
@@ -70,6 +71,16 @@ blueprint:
         entity:
           filter:
             - domain: input_boolean
+
+    detect_ui_manual_override:
+      name: Detect manual movement from Home Assistant UI
+      description: >-
+        Optional. Only user-attributed state changes with a user_id and without
+        parent context activate manual override. Physical switches and external
+        automations are not detected. Leave OFF for maximum reliability.
+      default: false
+      selector:
+        boolean:
 
     manual_override_duration:
       name: Manual override fallback duration
@@ -228,6 +239,7 @@ variables:
   debug_status_helper: !input debug_status_helper
   manual_override: !input manual_override
   manual_override_duration: !input manual_override_duration
+  detect_ui_manual_override: !input detect_ui_manual_override
   vacation_mode: !input vacation_mode
   window_contacts: !input window_contacts
   enable_morning: !input enable_morning
@@ -364,14 +376,14 @@ actions:
         {% set pos = state_attr(cover_entity, 'current_position') %}
         {{ is_state(cover_entity, 'closed') or
            (pos is not none and (pos | int) <= (close_position | int)) }}
-      cover_change_from_this_automation: >-
-        {{ trigger.id == 'cover_state_changed' and
-           trigger.to_state is not none and
-           trigger.to_state.context.parent_id == this.context.id }}
       cover_change_is_manual: >-
         {{ trigger.id == 'cover_state_changed' and
+           detect_ui_manual_override and
            trigger.to_state is not none and
-           trigger.to_state.context.parent_id != this.context.id }}
+           trigger.from_state is not none and
+           trigger.to_state.state not in ['unknown', 'unavailable'] and
+           trigger.to_state.context.user_id is not none and
+           trigger.to_state.context.parent_id is none }}
       override_timeout_reached: >-
         {{ manual_override != '' and is_state(manual_override, 'on') and
            (manual_override_duration | int) > 0 and
@@ -397,6 +409,30 @@ actions:
             data:
               value: "Manual override – fallback timeout expired"
 
+  # At the regular morning trigger, clear a prior-day lockout even when
+  # sunrise/not-before conditions make the actual opening happen later.
+  - if:
+      - condition: trigger
+        id:
+          - sunrise
+          - weekday_morning
+          - weekend_morning
+          - vacation_morning
+      - condition: template
+        value_template: "{{ manual_override != '' and is_state(manual_override, 'on') }}"
+      - condition: template
+        value_template: >-
+          {{ (vacation_active_now and trigger.id == 'vacation_morning') or
+             (not vacation_active_now and
+              ((morning_mode == 'sun' and trigger.id == 'sunrise') or
+               (morning_mode != 'sun' and
+                ((trigger.id == 'weekday_morning' and now().weekday() < 5) or
+                 (trigger.id == 'weekend_morning' and now().weekday() >= 5))))) }}
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: "{{ manual_override }}"
+
   - choose:
       # A cover state change without this automation as parent context is treated
       # as a manual/external movement and activates the optional override helper.
@@ -419,23 +455,17 @@ actions:
                 data:
                   value: "Manual override – manual cover movement detected"
 
-      # Ignore state changes caused by this automation's own cover service calls.
+      # Ignore all other cover changes (including own actions and device feedback).
       - conditions:
           - condition: trigger
             id: cover_state_changed
-          - condition: template
-            value_template: "{{ cover_change_from_this_automation }}"
         sequence:
-          - stop: "Cover movement initiated by this automation"
+          - stop: "Cover state update ignored (not a confirmed UI manual action)"
 
       # Manual override: never move a cover automatically.
       - conditions:
           - condition: template
-            value_template: "{{ override_active_now }}"
-          - condition: template
-            value_template: >-
-              {{ trigger.id not in ['sunrise', 'weekday_morning', 'weekend_morning',
-                                    'vacation_morning'] }}
+            value_template: "{{ override_active_now and trigger.id not in ['sunrise', 'weekday_morning', 'weekend_morning', 'vacation_morning'] }}"
         sequence:
           - if:
               - condition: template
