@@ -314,7 +314,7 @@ variables:
       (is_weekend and (
         (weekend_start <= weekend_end and weekend_start <= current < weekend_end)
         or (weekend_start > weekend_end and current >= weekend_start)))
-      or (weekend_start > weekend_end and now().weekday() == 0
+      or (weekend_start > weekend_end and now().weekday() in [6, 0]
           and current < weekend_end) %}
     {% set weekend_second = weekend_second_window_enabled and (
       (is_weekend and (
@@ -323,7 +323,7 @@ variables:
         or (weekend_second_start > weekend_second_end
             and current >= weekend_second_start)))
       or (weekend_second_start > weekend_second_end
-          and now().weekday() == 0 and current < weekend_second_end)) %}
+          and now().weekday() in [6, 0] and current < weekend_second_end)) %}
     {{ weekday_first or weekday_second or weekend_first or weekend_second }}
   office_presence_active: >-
     {{ expand(person_entities)
