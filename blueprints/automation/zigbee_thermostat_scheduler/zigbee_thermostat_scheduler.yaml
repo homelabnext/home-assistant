@@ -13,7 +13,7 @@ blueprint:
     Funktioniert integrationsunabhängig mit Climate-Entitäten, auch mit
     Zigbee2MQTT-Thermostaten.
   domain: automation
-    source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
   homeassistant:
     min_version: "2024.6.0"
 
