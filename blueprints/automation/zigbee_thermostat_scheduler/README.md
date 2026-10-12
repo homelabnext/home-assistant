@@ -7,7 +7,7 @@ Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Ass
 Für den normalen Betrieb sind keine Helfer für Zeitplan oder Temperaturen nötig:
 
 - **Betriebsart:** Auto, Manuell oder Aus. Das ist die feste Betriebsart der Automation.
-- **Zeitplan:** Wochentage auswählen, Beginn und Ende setzen; ein zweites Zeitfenster pro Tag kann zugeschaltet werden. Zeitfenster über Mitternacht sind erlaubt.
+- **Zeitplan:** Getrennte Zeitfenster für Montag bis Freitag und Samstag/Sonntag. Pro Gruppe ist ein zweites Zeitfenster optional; auch Zeitfenster über Mitternacht sind möglich.
 - **Temperaturen:** Komfort, Absenkung und Manuell direkt in den Blueprint-Einstellungen festlegen.
 - **Modus zur Laufzeit:** optional einen `input_select`-Helfer aktivieren, wenn der Modus im Dashboard oder per Sprache umgeschaltet werden soll. Er muss genau die Optionen `Aus`, `Auto` und `Manuell` haben. Ist der Helfer nicht verfügbar, fällt die Automation auf die fest eingestellte Betriebsart zurück.
 
@@ -20,7 +20,7 @@ Für den normalen Betrieb sind keine Helfer für Zeitplan oder Temperaturen nöt
 - **Anwesenheit / Homeoffice:** Im Modus Auto gilt Komfort, wenn mindestens eine ausgewählte Person zuhause ist **und** der Leistungssensor den Watt-Schwellwert überschreitet. Sonst gilt Absenkung. Die Regel kann auf die Zeitfenster begrenzt oder jederzeit angewendet werden. Sensoren in kW müssen vorher in Watt umgerechnet werden.
 - **Prüfintervall:** Standardmäßig jede Minute. Änderungen an Modus, Personen, Sensoren, Alarmo oder Fensterkontakt werden spätestens dann ausgewertet.
 
-Priorität: **Alarmo-Urlaub → Aus → Fenster offen → Manuell → Auto**. Auto schaltet zu Komfort, wenn der ausgewählte Zeitpunkt im Zeitplan liegt und die aktivierte Anwesenheitsregel erfüllt ist; andernfalls gilt Absenkung.
+Priorität: **Alarmo-Urlaub → Aus → Fenster offen → Manuell → Auto**. Auto schaltet zu Komfort, wenn das Zeitfenster aktiv ist und die aktivierte Anwesenheitsregel erfüllt ist; andernfalls gilt Absenkung.
 
 ## Installation
 
@@ -32,4 +32,4 @@ Alternativ die YAML-Datei nach `/config/blueprints/automation/HomeLabNext/` kopi
 
 - Für Geräte wie Aqara E1 und Sonoff TRVZB wird im Regelbetrieb `heat` gesetzt, für Aus `off`. Die Auto-Logik läuft in Home Assistant.
 - Frostschutz und Fensterabsenkung sind von 5 bis 12 °C einstellbar.
-- Der Blueprint kann im echten Home Assistant nur mit den gewählten Entitäten abschließend getestet werden.
+- Der Blueprint kann in Home Assistant nur mit den gewählten Entitäten abschließend getestet werden.
