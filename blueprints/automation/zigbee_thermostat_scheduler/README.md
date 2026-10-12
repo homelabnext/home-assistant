@@ -1,47 +1,35 @@
 # HomeLabNext – Zigbee Thermostat Scheduler
 
-Steuert Zigbee2MQTT-Thermostate über ihre Home-Assistant-`climate`-Entitäten. Der Blueprint ist nicht an ein bestimmtes Thermostatmodell gebunden.
+Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Assistant-`climate`-Entitäten.
 
-## Modi
+## Direkt in der Automation einstellen
 
-- **Aus:** setzt den HVAC-Modus der Thermostate auf `off`.
-- **Auto:** setzt den HVAC-Modus auf `heat` und verwendet während aktiver Zeitfenster die Komforttemperatur. Außerhalb der Zeitfenster gilt die Absenktemperatur.
-- **Manuell:** setzt den HVAC-Modus auf `heat` und verwendet die Temperatur aus dem manuellen Temperatur-Helfer.
-- **Alarmo Urlaub:** Sobald die ausgewählte Alarmo-Entität den Zustand `armed_vacation` hat, wird die konfigurierbare Frostschutztemperatur verwendet. Sie hat Vorrang vor Aus, Manuell und Zeitplan.
-- **Fenster offen:** Ist mindestens einer der ausgewählten Fensterkontakte offen, wird die einstellbare Fenster-Temperatur verwendet. Nach dem Schließen greift wieder der aktive Modus.
-- **Anwesenheit / Homeoffice (optional):** In `Auto` gilt die Komforttemperatur, wenn mindestens eine ausgewählte Person zuhause ist und der Leistungs-Sensor über dem Schwellwert liegt. Sonst gilt die Absenktemperatur. In den Blueprint-Einstellungen ist auswählbar, ob diese Regel nur während aktiver Zeitfenster oder jederzeit gilt. Standardmäßig gilt sie nur im Zeitplan.
+Für den normalen Betrieb sind keine Helfer für Zeitplan oder Temperaturen nötig:
 
-Der Betriebsmodus wird über einen `input_select` gewählt. Zeitfenster und Wochentage werden über einen Home-Assistant-Schedule-Helfer konfiguriert. Dort können pro Wochentag beliebig viele Zeitfenster hinterlegt werden.
+- **Betriebsart:** Auto, Manuell oder Aus. Das ist die feste Betriebsart der Automation.
+- **Zeitplan:** Wochentage auswählen, Beginn und Ende setzen; ein zweites Zeitfenster pro Tag kann zugeschaltet werden. Zeitfenster über Mitternacht sind erlaubt.
+- **Temperaturen:** Komfort, Absenkung und Manuell direkt in den Blueprint-Einstellungen festlegen.
+- **Modus zur Laufzeit:** optional einen `input_select`-Helfer aktivieren, wenn der Modus im Dashboard oder per Sprache umgeschaltet werden soll. Er muss genau die Optionen `Aus`, `Auto` und `Manuell` haben. Ist der Helfer nicht verfügbar, fällt die Automation auf die fest eingestellte Betriebsart zurück.
 
-## Benötigte Helfer
+Änderungen an diesen Werten erfolgen in der Konfiguration der Automation. Helfer sind nur nötig, wenn Werte im laufenden Betrieb außerhalb der Automationskonfiguration veränderbar sein sollen.
 
-Lege unter **Einstellungen → Geräte & Dienste → Helfer** folgende Helfer an:
+## Optionale Funktionen
 
-1. **Auswahl** mit den Optionen exakt `Aus`, `Auto` und `Manuell`.
-2. **Zeitplan** für die gewünschten Wochentage und Zeitfenster.
-3. Drei **Zahl**-Helfer für manuelle Temperatur, Komforttemperatur und Absenktemperatur. Stelle Einheit auf `°C` und wähle einen passenden Bereich, zum Beispiel 5 bis 30 °C mit Schrittweite 0,5 °C.
-4. Einen oder mehrere Fensterkontakte als `binary_sensor` sowie die Alarmo-Entität (`alarm_control_panel`). Alarmo muss den Urlaubsmodus `armed_vacation` aktiviert haben.
-5. Die Frostschutztemperatur bei Urlaub und die Fenster-Temperatur werden in den Blueprint-Einstellungen gesetzt (je 5 bis 12 °C, Standard 7 °C).
-6. Optional die Anwesenheitsregel aktivieren, Personen und einen Leistungs-Sensor (Geräteklasse `power`, Einheit Watt) auswählen und den Schwellwert festlegen. Entscheide zusätzlich, ob die Regel nur im Zeitplan gelten soll. Die Komfort- und Absenktemperatur-Helfer liefern dabei die beiden Temperaturen, zum Beispiel 22 °C und 20 °C.
+- **Fensterkontakt:** Bei mindestens einem offenen ausgewählten Kontakt wird die Fenster-Temperatur verwendet. Im Modus Aus bleibt das Thermostat aus.
+- **Alarmo-Urlaub:** Wenn aktiviert und Alarmo den Zustand `armed_vacation` meldet, gilt die Frostschutztemperatur. Urlaub hat Vorrang vor allen anderen Regeln.
+- **Anwesenheit / Homeoffice:** Im Modus Auto gilt Komfort, wenn mindestens eine ausgewählte Person zuhause ist **und** der Leistungssensor den Watt-Schwellwert überschreitet. Sonst gilt Absenkung. Die Regel kann auf die Zeitfenster begrenzt oder jederzeit angewendet werden. Sensoren in kW müssen vorher in Watt umgerechnet werden.
+- **Prüfintervall:** Standardmäßig jede Minute. Änderungen an Modus, Personen, Sensoren, Alarmo oder Fensterkontakt werden spätestens dann ausgewertet.
 
-Pro Raum bzw. unabhängig gesteuerter Thermostatgruppe werden ein eigener Modus-Helfer und Zeitplan empfohlen. Temperatur-Helfer können ebenfalls pro Raum angelegt werden, wenn die Zielwerte verschieden sind. Wähle bei jeder Automation nur die Fensterkontakte aus demselben Raum, damit ein geöffnetes Fenster nicht alle Heizkörper im Haus absenkt.
+Priorität: **Alarmo-Urlaub → Aus → Fenster offen → Manuell → Auto**. Auto schaltet zu Komfort, wenn der ausgewählte Zeitpunkt im Zeitplan liegt und die aktivierte Anwesenheitsregel erfüllt ist; andernfalls gilt Absenkung.
 
 ## Installation
 
-Blueprint importieren über:
+[Blueprint in Home Assistant importieren](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Fhomelabnext%2Fhome-assistant%2Fmain%2Fblueprints%2Fautomation%2Fzigbee_thermostat_scheduler%2Fzigbee_thermostat_scheduler.yaml)
 
-`https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml`
+Alternativ die YAML-Datei nach `/config/blueprints/automation/HomeLabNext/` kopieren und Blueprints in Home Assistant neu laden.
 
-Oder die YAML-Datei nach `/config/blueprints/automation/HomeLabNext/` kopieren und in Home Assistant die Blueprints neu laden. Anschließend eine Automation aus dem Blueprint erstellen und die Climate-Entitäten sowie Helfer auswählen.
+## Hinweise
 
-## Unterstützte Thermostate und Hinweise
-
-- Der Blueprint arbeitet mit Home-Assistant-Climate-Entitäten. Sonoff TRVZB, Aqara E1 und Aqara W600 stellen über Zigbee2MQTT jeweils Solltemperatur und HVAC-Modi bereit. Der Blueprint setzt im Betrieb `heat`, in Aus `off`; die eigene Thermostat-Zeitautomatik wird dadurch nicht verwendet.
-- Die Temperaturgrenze für Frostschutz/Fenster beginnt bei 5 °C, damit sie mit E1 und W600 kompatibel ist.
-- Der Urlaubsmodus von Alarmo muss in den Alarmo-Einstellungen aktiviert sein. Alarmo meldet ihn als `armed_vacation`.
-- Bei aktiver Anwesenheitsregel wird Personenstatus und Leistung spätestens nach dem eingestellten Prüfintervall neu ausgewertet. Für eine schnellere Reaktion das Intervall auf eine Minute stellen; Standard sind fünf Minuten.
-- Die Anwesenheitsregel gilt standardmäßig nur während des Schedule-Zeitplans. Deaktiviere „Anwesenheitsregel nur im Zeitplan anwenden“, wenn sie auch außerhalb der eingestellten Zeitfenster Komforttemperatur bei Anwesenheit und aktiver Leistung setzen soll.
-- Fensterkontakte werden als `binary_sensor` gewählt. Bei mehreren Kontakten reicht ein offener Sensor, damit abgesenkt wird.
-- Eine manuelle Temperaturänderung am Thermostat selbst wird bei der nächsten Prüfung vom ausgewählten Helferwert überschrieben. Für manuelle Änderungen den Modus `Manuell` wählen und den manuellen Temperatur-Helfer anpassen.
-- Der Blueprint aktualisiert nach einem Neustart und zusätzlich standardmäßig alle fünf Minuten. Die Prüfhäufigkeit ist in der Automation einstellbar.
-- Ein nicht verfügbarer Zeitplan oder Temperatur-Helfer führt zu keiner passenden Aktion. Die letzte Thermostateinstellung bleibt dann bestehen.
+- Für Geräte wie Aqara E1 und Sonoff TRVZB wird im Regelbetrieb `heat` gesetzt, für Aus `off`. Die Auto-Logik läuft in Home Assistant.
+- Frostschutz und Fensterabsenkung sind von 5 bis 12 °C einstellbar.
+- Der Blueprint kann im echten Home Assistant nur mit den gewählten Entitäten abschließend getestet werden.
