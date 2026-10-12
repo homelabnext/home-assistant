@@ -17,6 +17,12 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.6.0
+
+- Added separate weekday and weekend schedules, each with an optional second time window.
+- Kept all temperatures directly configurable in the blueprint and the runtime mode helper optional.
+- Updated thermostat scheduler documentation and repository index.
+
 ### v0.5.0
 
 - Replaced required schedule and temperature helpers with direct blueprint inputs for weekdays, up to two daily windows, and all operating temperatures.
