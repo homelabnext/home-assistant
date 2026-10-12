@@ -17,6 +17,14 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.5.0
+
+- Replaced required schedule and temperature helpers with direct blueprint inputs for weekdays, up to two daily windows, and all operating temperatures.
+- Added optional fixed operating mode and optional input_select for dashboard/runtime mode switching.
+- Made window contacts, Alarmo vacation handling, and presence/power conditions optional.
+- Kept vacation, off, window, manual, and auto priority explicit; added overnight time-window handling.
+- Set a one-minute default refresh so state changes are applied promptly without helper state triggers.
+
 ### v0.4.0
 
 - Added a setting to apply the optional person and power presence rule only during scheduled time windows or at any time in Auto mode.
