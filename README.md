@@ -8,9 +8,9 @@ The repository is structured so that every component can be used independently. 
 
 ### Zigbee Thermostat Scheduler
 
-Control one or more Zigbee2MQTT climate entities with Off, Auto and Manual modes, a weekly schedule, window contacts, Alarmo vacation frost protection, and optional person plus device-power presence rules.
+Control one or more climate entities with direct weekday, time-window and temperature settings. An input_select for runtime mode switching is optional; window, Alarmo vacation and presence rules are optional.
 
-**Current version:** v0.4.0
+**Current version:** v0.5.0
 
 [Blueprint file](blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml) · [Documentation](blueprints/automation/zigbee_thermostat_scheduler/README.md)
 
