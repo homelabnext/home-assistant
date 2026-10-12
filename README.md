@@ -6,6 +6,16 @@ The repository is structured so that every component can be used independently. 
 
 ## Blueprints
 
+### Zigbee Thermostat Scheduler
+
+Control one or more Zigbee2MQTT climate entities with Off, Auto and Manual modes, a weekly schedule, window contacts, Alarmo vacation frost protection, and optional person plus device-power presence rules.
+
+**Current version:** v0.4.0
+
+[Blueprint file](blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml) · [Documentation](blueprints/automation/zigbee_thermostat_scheduler/README.md)
+
+[Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fzigbee_thermostat_scheduler%2Fzigbee_thermostat_scheduler.yaml)
+
 ### Adaptive Solar Shading
 
 Adaptive solar protection for covers based on facade orientation, illuminance, outdoor/indoor temperature, sun position, manual overrides, movement limits and optional Day Mode coordination.
