@@ -1,17 +1,11 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.4.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.5.0"
   description: >
-    Steuert eine oder mehrere Home-Assistant-Climate-Entitäten über die Modi
-    Aus, Auto und Manuell. Im Automatikbetrieb schaltet ein Home-Assistant-
-    Zeitplan-Helfer zwischen Komfort- und Absenktemperatur um. Im manuellen
-    Betrieb wird die Temperatur aus einem Input-Number-Helfer übernommen.
-    Ein offenes Fenster senkt die Temperatur. Im Alarmo-Urlaubsmodus wird
-    ausschließlich die einstellbare Frostschutztemperatur verwendet.
-    Optional kann die Komforttemperatur im aktiven Zeitfenster an die
-    Anwesenheit ausgewählter Personen und den Verbrauch eines Geräts
-    gekoppelt werden.
-    Funktioniert integrationsunabhängig mit Climate-Entitäten, auch mit
-    Zigbee2MQTT-Thermostaten.
+    Steuert Climate-Entitäten mit direkt einstellbaren Wochentagen,
+    Zeitfenstern und Temperaturen. Ein optionaler input_select erlaubt
+    zusätzlich das Umschalten zwischen Aus, Auto und Manuell über Dashboard
+    oder Sprachsteuerung. Fensterkontakt, Alarmo-Urlaub und Anwesenheitsregel
+    sind optional.
   domain: automation
   source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
   homeassistant:
@@ -24,35 +18,172 @@ blueprint:
       input:
         thermostat_entities:
           name: Thermostat-Entitäten
-          description: Eine oder mehrere Climate-Entitäten. Mehrere Thermostate können gemeinsam gesteuert werden.
+          description: Eine oder mehrere Climate-Entitäten.
           selector:
             entity:
               multiple: true
               filter:
                 - domain: climate
 
+    operation_section:
+      name: Betriebsart und Temperaturen
+      icon: mdi:thermostat-box
+      input:
+        default_mode:
+          name: Betriebsart
+          description: >
+            Auto nutzt Zeitplan und optionale Anwesenheitsregel. Manuell nutzt
+            die manuelle Temperatur. Aus schaltet die Thermostate aus.
+            Dies ist der feste Modus dieser Automation. Für Umschaltung zur
+            Laufzeit den optionalen Modus-Helfer aktivieren.
+          default: Auto
+          selector:
+            select:
+              options:
+                - Auto
+                - Manuell
+                - Aus
+              mode: dropdown
+        use_mode_helper:
+          name: Laufzeit-Umschaltung mit input_select verwenden
+          description: Aktivieren, wenn der Modus über Dashboard oder Sprache umgeschaltet werden soll.
+          default: false
+          selector:
+            boolean:
+        mode_helper:
+          name: Optionaler Modus-Helfer
+          description: input_select mit exakt den Optionen Aus, Auto und Manuell. Nur bei aktivierter Laufzeit-Umschaltung verwenden.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_select
+        comfort_temperature:
+          name: Komforttemperatur
+          default: 22
+          selector:
+            number:
+              min: 5
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+              mode: box
+        setback_temperature:
+          name: Absenktemperatur
+          default: 20
+          selector:
+            number:
+              min: 5
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+              mode: box
+        manual_temperature:
+          name: Manuelle Temperatur
+          default: 21
+          selector:
+            number:
+              min: 5
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+              mode: box
+
+    schedule_section:
+      name: Wochenzeitplan
+      icon: mdi:calendar-clock
+      input:
+        active_days:
+          name: Aktive Wochentage
+          description: Wähle die Tage, an denen das Zeitfenster gelten soll.
+          default:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+          selector:
+            select:
+              multiple: true
+              options:
+                - label: Montag
+                  value: mon
+                - label: Dienstag
+                  value: tue
+                - label: Mittwoch
+                  value: wed
+                - label: Donnerstag
+                  value: thu
+                - label: Freitag
+                  value: fri
+                - label: Samstag
+                  value: sat
+                - label: Sonntag
+                  value: sun
+        schedule_start:
+          name: Zeitfenster Beginn
+          default: "06:00:00"
+          selector:
+            time:
+        schedule_end:
+          name: Zeitfenster Ende
+          default: "22:00:00"
+          selector:
+            time:
+        second_window_enabled:
+          name: Zweites Zeitfenster aktivieren
+          default: false
+          selector:
+            boolean:
+        second_window_start:
+          name: Zweites Zeitfenster Beginn
+          default: "16:00:00"
+          selector:
+            time:
+        second_window_end:
+          name: Zweites Zeitfenster Ende
+          default: "22:00:00"
+          selector:
+            time:
+
     protection_section:
-      name: Fenster und Urlaub
+      name: Fenster und Urlaub (optional)
       icon: mdi:shield-home
       input:
         window_contacts:
           name: Fensterkontakte
-          description: Ein oder mehrere Binary-Sensoren. Bei mindestens einem offenen Fenster wird die einstellbare Fenster-Temperatur verwendet.
+          description: Bei mindestens einem offenen Kontakt gilt die Fenster-Temperatur.
+          default: []
           selector:
             entity:
               multiple: true
               filter:
                 - domain: binary_sensor
+        window_open_temperature:
+          name: Temperatur bei offenem Fenster
+          default: 7
+          selector:
+            number:
+              min: 5
+              max: 12
+              step: 0.5
+              unit_of_measurement: "°C"
+              mode: box
+        vacation_enabled:
+          name: Alarmo-Urlaubsmodus verwenden
+          default: false
+          selector:
+            boolean:
         vacation_alarm:
           name: Alarmo-Entität
-          description: Alarmo alarm_control_panel. Bei Zustand armed_vacation gilt die Frostschutztemperatur.
+          description: Bei Zustand armed_vacation gilt die Frostschutztemperatur.
+          default: ""
           selector:
             entity:
               filter:
                 - domain: alarm_control_panel
         vacation_temperature:
           name: Frostschutztemperatur im Urlaubsmodus
-          description: Temperatur, solange Alarmo im Zustand armed_vacation ist.
           default: 7
           selector:
             number:
@@ -61,78 +192,25 @@ blueprint:
               step: 0.5
               unit_of_measurement: "°C"
               mode: box
-        window_open_temperature:
-          name: Temperatur bei offenem Fenster
-          description: Wird verwendet, solange mindestens ein ausgewählter Fensterkontakt offen ist.
-          default: 7
-          selector:
-            number:
-              min: 5
-              max: 12
-              step: 0.5
-              unit_of_measurement: "°C"
-              mode: box
-
-    helpers_section:
-      name: Helfer und Zeitplan
-      icon: mdi:form-select
-      input:
-        operating_mode:
-          name: Betriebsmodus
-          description: input_select mit exakt den Optionen Aus, Auto und Manuell.
-          selector:
-            entity:
-              filter:
-                - domain: input_select
-        weekly_schedule:
-          name: Wochenzeitplan
-          description: Schedule-Helfer. Zeitfenster und Wochentage werden im Schedule-Helfer festgelegt.
-          selector:
-            entity:
-              filter:
-                - domain: schedule
-        manual_temperature:
-          name: Manuelle Temperatur
-          description: input_number für die gewünschte Temperatur im Modus Manuell.
-          selector:
-            entity:
-              filter:
-                - domain: input_number
-        comfort_temperature:
-          name: Komforttemperatur
-          description: input_number für die Temperatur während aktiver Zeitfenster.
-          selector:
-            entity:
-              filter:
-                - domain: input_number
-        setback_temperature:
-          name: Absenktemperatur
-          description: input_number für die Temperatur außerhalb aktiver Zeitfenster.
-          selector:
-            entity:
-              filter:
-                - domain: input_number
 
     presence_section:
-      name: Anwesenheit und Homeoffice
+      name: Anwesenheit und Homeoffice (optional)
       icon: mdi:account-check
       collapsed: true
       input:
         presence_rule_enabled:
           name: Anwesenheitsregel aktivieren
-          description: Im Modus Auto steuert Anwesenheit und Leistung, ob Komfort- oder Absenktemperatur gilt.
+          description: Komfort gilt bei mindestens einer Person zuhause und Leistung über dem Schwellwert.
           default: false
           selector:
             boolean:
         presence_rule_schedule_only:
           name: Anwesenheitsregel nur im Zeitplan anwenden
-          description: Aktiviert bedeutet, Komforttemperatur durch Anwesenheit und Leistung nur innerhalb aktiver Zeitfenster. Deaktiviert bedeutet, dass die Regel jederzeit gilt.
           default: true
           selector:
             boolean:
         person_entities:
           name: Personen
-          description: Optional, wenn die Anwesenheitsregel nicht verwendet wird. Bei mehreren Personen reicht eine Person zuhause.
           default: []
           selector:
             entity:
@@ -140,8 +218,7 @@ blueprint:
               filter:
                 - domain: person
         power_sensor:
-          name: Leistungs-Sensor
-          description: Sensor mit Geräteleistung in Watt, z. B. PC oder Schreibtisch.
+          name: Leistungs-Sensor in Watt
           default: ""
           selector:
             entity:
@@ -150,7 +227,6 @@ blueprint:
                   device_class: power
         power_threshold:
           name: Leistungsschwellwert
-          description: Die Komforttemperatur gilt, wenn die gemessene Leistung darüber liegt.
           default: 100
           selector:
             number:
@@ -160,15 +236,18 @@ blueprint:
               unit_of_measurement: W
               mode: box
 
-    timing_section:
+    refresh_section:
       name: Aktualisierung
       icon: mdi:timer-outline
       collapsed: true
       input:
         refresh_interval:
-          name: Zusätzliche Prüfung
-          description: Prüft regelmäßig Modus, Zeitplan und Temperaturen erneut. Bei aktiver Anwesenheitsregel bestimmt dieses Intervall auch die Reaktionszeit auf Personen- und Leistungsänderungen. Für schnelle Reaktion eine Minute wählen.
-          default: "/5"
+          name: Prüfintervall
+          description: >
+            Die Automation prüft den Zustand regelmäßig. Dadurch reagieren
+            Änderungen spätestens nach diesem Intervall; kürzere Intervalle
+            erhöhen die Zahl der Prüfungen.
+          default: "/1"
           selector:
             select:
               options:
@@ -183,54 +262,68 @@ mode: restart
 max_exceeded: silent
 
 variables:
-  thermostat_entities: !input thermostat_entities
-  operating_mode: !input operating_mode
-  weekly_schedule: !input weekly_schedule
-  manual_temperature: !input manual_temperature
-  comfort_temperature: !input comfort_temperature
-  setback_temperature: !input setback_temperature
-  vacation_alarm: !input vacation_alarm
+  default_mode: !input default_mode
+  use_mode_helper: !input use_mode_helper
+  mode_helper: !input mode_helper
+  active_days: !input active_days
+  schedule_start: !input schedule_start
+  schedule_end: !input schedule_end
+  second_window_enabled: !input second_window_enabled
+  second_window_start: !input second_window_start
+  second_window_end: !input second_window_end
   window_contacts: !input window_contacts
+  vacation_enabled: !input vacation_enabled
+  vacation_alarm: !input vacation_alarm
   vacation_temperature: !input vacation_temperature
   window_open_temperature: !input window_open_temperature
+  comfort_temperature: !input comfort_temperature
+  setback_temperature: !input setback_temperature
+  manual_temperature: !input manual_temperature
   presence_rule_enabled: !input presence_rule_enabled
   presence_rule_schedule_only: !input presence_rule_schedule_only
   person_entities: !input person_entities
   power_sensor: !input power_sensor
   power_threshold: !input power_threshold
 
-  office_presence_active: >
-    {{
-      (expand(person_entities)
-        | selectattr('state', 'eq', 'home')
-        | list | count > 0)
-      and power_sensor != ''
-      and has_value(power_sensor)
-      and (states(power_sensor) | float(0)) > (power_threshold | float)
-    }}
+  current_mode: >-
+    {{ states(mode_helper) if use_mode_helper and mode_helper != ''
+       and has_value(mode_helper) else default_mode }}
+  scheduled_now: >-
+    {% set day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] %}
+    {% set weekday = now().weekday() %}
+    {% set today = day_names[weekday] %}
+    {% set yesterday = day_names[(weekday - 1) % 7] %}
+    {% set current = now().strftime('%H:%M:%S') %}
+    {% set first =
+      (today in active_days and schedule_start <= schedule_end
+       and schedule_start <= current < schedule_end)
+      or (today in active_days and schedule_start > schedule_end
+          and current >= schedule_start)
+      or (yesterday in active_days and schedule_start > schedule_end
+          and current < schedule_end) %}
+    {% set second = second_window_enabled and (
+      (today in active_days and second_window_start <= second_window_end
+       and second_window_start <= current < second_window_end)
+      or (today in active_days and second_window_start > second_window_end
+          and current >= second_window_start)
+      or (yesterday in active_days and second_window_start > second_window_end
+          and current < second_window_end)) %}
+    {{ first or second }}
+  office_presence_active: >-
+    {{ expand(person_entities)
+       | selectattr('state', 'eq', 'home') | list | count > 0
+       and power_sensor != '' and has_value(power_sensor)
+       and (states(power_sensor) | float(0)) > (power_threshold | float) }}
+  use_comfort_temperature: >-
+    {{ (scheduled_now | bool and
+        (not presence_rule_enabled or office_presence_active | bool))
+       or (presence_rule_enabled and not presence_rule_schedule_only
+           and office_presence_active | bool) }}
 
 triggers:
   - trigger: homeassistant
     event: start
     id: startup
-  - trigger: state
-    entity_id: !input operating_mode
-    id: mode_change
-  - trigger: state
-    entity_id: !input weekly_schedule
-    id: schedule_change
-  - trigger: state
-    entity_id: !input window_contacts
-    id: window_change
-  - trigger: state
-    entity_id: !input vacation_alarm
-    id: alarm_change
-  - trigger: state
-    entity_id:
-      - !input manual_temperature
-      - !input comfort_temperature
-      - !input setback_temperature
-    id: temperature_change
   - trigger: time_pattern
     minutes: !input refresh_interval
     id: periodic_refresh
@@ -238,15 +331,16 @@ triggers:
 actions:
   - choose:
       - conditions:
-          - condition: state
-            entity_id: !input vacation_alarm
-            state: "armed_vacation"
+          - condition: template
+            value_template: >-
+              {{ vacation_enabled and vacation_alarm != ''
+                 and is_state(vacation_alarm, 'armed_vacation') }}
         sequence:
           - action: climate.set_hvac_mode
             target:
               entity_id: !input thermostat_entities
             data:
-              hvac_mode: "heat"
+              hvac_mode: heat
           - action: climate.set_temperature
             target:
               entity_id: !input thermostat_entities
@@ -254,28 +348,26 @@ actions:
               temperature: "{{ vacation_temperature | float }}"
 
       - conditions:
-          - condition: state
-            entity_id: !input operating_mode
-            state: "Aus"
+          - condition: template
+            value_template: "{{ current_mode == 'Aus' }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
               entity_id: !input thermostat_entities
             data:
-              hvac_mode: "off"
+              hvac_mode: off
 
       - conditions:
           - condition: template
-            value_template: >
-              {{ expand(window_contacts)
-                 | selectattr('state', 'eq', 'on')
+            value_template: >-
+              {{ expand(window_contacts) | selectattr('state', 'eq', 'on')
                  | list | count > 0 }}
         sequence:
           - action: climate.set_hvac_mode
             target:
               entity_id: !input thermostat_entities
             data:
-              hvac_mode: "heat"
+              hvac_mode: heat
           - action: climate.set_temperature
             target:
               entity_id: !input thermostat_entities
@@ -283,90 +375,46 @@ actions:
               temperature: "{{ window_open_temperature | float }}"
 
       - conditions:
-          - condition: state
-            entity_id: !input operating_mode
-            state: "Manuell"
           - condition: template
-            value_template: "{{ states(manual_temperature) | is_number }}"
+            value_template: "{{ current_mode == 'Manuell' }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
               entity_id: !input thermostat_entities
             data:
-              hvac_mode: "heat"
+              hvac_mode: heat
           - action: climate.set_temperature
             target:
               entity_id: !input thermostat_entities
             data:
-              temperature: "{{ states(manual_temperature) | float }}"
+              temperature: "{{ manual_temperature | float }}"
 
       - conditions:
-          - condition: state
-            entity_id: !input operating_mode
-            state: "Auto"
           - condition: template
-            value_template: >
-              {{ presence_rule_enabled
-                 and not (office_presence_active | bool)
-                 and (is_state(weekly_schedule, 'on') or not presence_rule_schedule_only) }}
-          - condition: template
-            value_template: "{{ states(setback_temperature) | is_number }}"
+            value_template: "{{ current_mode == 'Auto' and use_comfort_temperature }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
               entity_id: !input thermostat_entities
             data:
-              hvac_mode: "heat"
+              hvac_mode: heat
           - action: climate.set_temperature
             target:
               entity_id: !input thermostat_entities
             data:
-              temperature: "{{ states(setback_temperature) | float }}"
+              temperature: "{{ comfort_temperature | float }}"
 
       - conditions:
-          - condition: state
-            entity_id: !input operating_mode
-            state: "Auto"
           - condition: template
-            value_template: >
-              {{ (is_state(weekly_schedule, 'on')
-                  and (not presence_rule_enabled or (office_presence_active | bool)))
-                 or (presence_rule_enabled
-                     and not presence_rule_schedule_only
-                     and (office_presence_active | bool)) }}
-          - condition: template
-            value_template: "{{ states(comfort_temperature) | is_number }}"
+            value_template: "{{ current_mode == 'Auto' and not use_comfort_temperature }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
               entity_id: !input thermostat_entities
             data:
-              hvac_mode: "heat"
+              hvac_mode: heat
           - action: climate.set_temperature
             target:
               entity_id: !input thermostat_entities
             data:
-              temperature: "{{ states(comfort_temperature) | float }}"
-
-      - conditions:
-          - condition: state
-            entity_id: !input operating_mode
-            state: "Auto"
-          - condition: state
-            entity_id: !input weekly_schedule
-            state: "off"
-          - condition: template
-            value_template: "{{ not presence_rule_enabled or presence_rule_schedule_only }}"
-          - condition: template
-            value_template: "{{ states(setback_temperature) | is_number }}"
-        sequence:
-          - action: climate.set_hvac_mode
-            target:
-              entity_id: !input thermostat_entities
-            data:
-              hvac_mode: "heat"
-          - action: climate.set_temperature
-            target:
-              entity_id: !input thermostat_entities
-            data:
-              temperature: "{{ states(setback_temperature) | float }}"
+              temperature: "{{ setback_temperature | float }}"
