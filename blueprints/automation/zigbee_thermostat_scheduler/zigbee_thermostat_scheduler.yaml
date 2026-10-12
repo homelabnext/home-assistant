@@ -1,8 +1,9 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.5.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.6.0"
   description: >
-    Steuert Climate-Entitäten mit direkt einstellbaren Wochentagen,
-    Zeitfenstern und Temperaturen. Ein optionaler input_select erlaubt
+    Steuert Climate-Entitäten mit getrennten Zeitfenstern für Wochentage
+    und Wochenenden sowie direkt einstellbaren Temperaturen. Ein optionaler
+    input_select erlaubt
     zusätzlich das Umschalten zwischen Aus, Auto und Manuell über Dashboard
     oder Sprachsteuerung. Fensterkontakt, Alarmo-Urlaub und Anwesenheitsregel
     sind optional.
@@ -93,56 +94,54 @@ blueprint:
       name: Wochenzeitplan
       icon: mdi:calendar-clock
       input:
-        active_days:
-          name: Aktive Wochentage
-          description: Wähle die Tage, an denen das Zeitfenster gelten soll.
-          default:
-            - mon
-            - tue
-            - wed
-            - thu
-            - fri
-          selector:
-            select:
-              multiple: true
-              options:
-                - label: Montag
-                  value: mon
-                - label: Dienstag
-                  value: tue
-                - label: Mittwoch
-                  value: wed
-                - label: Donnerstag
-                  value: thu
-                - label: Freitag
-                  value: fri
-                - label: Samstag
-                  value: sat
-                - label: Sonntag
-                  value: sun
-        schedule_start:
-          name: Zeitfenster Beginn
+        weekday_start:
+          name: Wochentage – Zeitfenster Beginn
           default: "06:00:00"
           selector:
             time:
-        schedule_end:
-          name: Zeitfenster Ende
+        weekday_end:
+          name: Wochentage – Zeitfenster Ende
           default: "22:00:00"
           selector:
             time:
-        second_window_enabled:
-          name: Zweites Zeitfenster aktivieren
+        weekday_second_window_enabled:
+          name: Wochentage – zweites Zeitfenster aktivieren
           default: false
           selector:
             boolean:
-        second_window_start:
-          name: Zweites Zeitfenster Beginn
+        weekday_second_start:
+          name: Wochentage – zweites Zeitfenster Beginn
           default: "16:00:00"
           selector:
             time:
-        second_window_end:
-          name: Zweites Zeitfenster Ende
+        weekday_second_end:
+          name: Wochentage – zweites Zeitfenster Ende
           default: "22:00:00"
+          selector:
+            time:
+        weekend_start:
+          name: Wochenende – Zeitfenster Beginn
+          default: "08:00:00"
+          selector:
+            time:
+        weekend_end:
+          name: Wochenende – Zeitfenster Ende
+          default: "23:00:00"
+          selector:
+            time:
+        weekend_second_window_enabled:
+          name: Wochenende – zweites Zeitfenster aktivieren
+          default: false
+          selector:
+            boolean:
+        weekend_second_start:
+          name: Wochenende – zweites Zeitfenster Beginn
+          default: "16:00:00"
+          selector:
+            time:
+        weekend_second_end:
+          name: Wochenende – zweites Zeitfenster Ende
+          default: "23:00:00"
           selector:
             time:
 
@@ -265,12 +264,16 @@ variables:
   default_mode: !input default_mode
   use_mode_helper: !input use_mode_helper
   mode_helper: !input mode_helper
-  active_days: !input active_days
-  schedule_start: !input schedule_start
-  schedule_end: !input schedule_end
-  second_window_enabled: !input second_window_enabled
-  second_window_start: !input second_window_start
-  second_window_end: !input second_window_end
+  weekday_start: !input weekday_start
+  weekday_end: !input weekday_end
+  weekday_second_window_enabled: !input weekday_second_window_enabled
+  weekday_second_start: !input weekday_second_start
+  weekday_second_end: !input weekday_second_end
+  weekend_start: !input weekend_start
+  weekend_end: !input weekend_end
+  weekend_second_window_enabled: !input weekend_second_window_enabled
+  weekend_second_start: !input weekend_second_start
+  weekend_second_end: !input weekend_second_end
   window_contacts: !input window_contacts
   vacation_enabled: !input vacation_enabled
   vacation_alarm: !input vacation_alarm
@@ -289,26 +292,39 @@ variables:
     {{ states(mode_helper) if use_mode_helper and mode_helper != ''
        and has_value(mode_helper) else default_mode }}
   scheduled_now: >-
-    {% set day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] %}
-    {% set weekday = now().weekday() %}
-    {% set today = day_names[weekday] %}
-    {% set yesterday = day_names[(weekday - 1) % 7] %}
     {% set current = now().strftime('%H:%M:%S') %}
-    {% set first =
-      (today in active_days and schedule_start <= schedule_end
-       and schedule_start <= current < schedule_end)
-      or (today in active_days and schedule_start > schedule_end
-          and current >= schedule_start)
-      or (yesterday in active_days and schedule_start > schedule_end
-          and current < schedule_end) %}
-    {% set second = second_window_enabled and (
-      (today in active_days and second_window_start <= second_window_end
-       and second_window_start <= current < second_window_end)
-      or (today in active_days and second_window_start > second_window_end
-          and current >= second_window_start)
-      or (yesterday in active_days and second_window_start > second_window_end
-          and current < second_window_end)) %}
-    {{ first or second }}
+    {% set is_weekday = now().weekday() < 5 %}
+    {% set is_weekend = now().weekday() >= 5 %}
+    {% set weekday_first =
+      (is_weekday and (
+        (weekday_start <= weekday_end and weekday_start <= current < weekday_end)
+        or (weekday_start > weekday_end and current >= weekday_start)))
+      or (weekday_start > weekday_end and now().weekday() in [1, 2, 3, 4, 5]
+          and current < weekday_end) %}
+    {% set weekday_second = weekday_second_window_enabled and (
+      (is_weekday and (
+        (weekday_second_start <= weekday_second_end
+         and weekday_second_start <= current < weekday_second_end)
+        or (weekday_second_start > weekday_second_end
+            and current >= weekday_second_start)))
+      or (weekday_second_start > weekday_second_end
+          and now().weekday() in [1, 2, 3, 4, 5]
+          and current < weekday_second_end)) %}
+    {% set weekend_first =
+      (is_weekend and (
+        (weekend_start <= weekend_end and weekend_start <= current < weekend_end)
+        or (weekend_start > weekend_end and current >= weekend_start)))
+      or (weekend_start > weekend_end and now().weekday() == 0
+          and current < weekend_end) %}
+    {% set weekend_second = weekend_second_window_enabled and (
+      (is_weekend and (
+        (weekend_second_start <= weekend_second_end
+         and weekend_second_start <= current < weekend_second_end)
+        or (weekend_second_start > weekend_second_end
+            and current >= weekend_second_start)))
+      or (weekend_second_start > weekend_second_end
+          and now().weekday() == 0 and current < weekend_second_end)) %}
+    {{ weekday_first or weekday_second or weekend_first or weekend_second }}
   office_presence_active: >-
     {{ expand(person_entities)
        | selectattr('state', 'eq', 'home') | list | count > 0
