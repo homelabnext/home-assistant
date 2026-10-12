@@ -15,6 +15,14 @@ Blueprints are versioned independently. A repository restructuring does not chan
 - Added a periodic pause check after reloads and restarts without automatically starting music.
 - Added documentation, import link and offline decision-template tests.
 
+## Zigbee Thermostat Scheduler
+
+### v0.4.0
+
+- Added a setting to apply the optional person and power presence rule only during scheduled time windows or at any time in Auto mode.
+- Kept schedule-only behavior as the default; vacation, window and operating-mode priority remain unchanged.
+- Added the blueprint and documentation to the public `homelabnext/home-assistant` repository.
+
 ## Repository
 
 ### 2026-08-15
