@@ -1,0 +1,209 @@
+blueprint:
+  name: "HomeLabNext – Paperless-Benachrichtigungen v0.1.0"
+  description: >-
+    Sendet täglich eine Erinnerung mit der aktuellen Anzahl an Dokumenten im
+    Paperless-Posteingang, wenn dort mindestens ein Dokument liegt. Optional
+    wird zusätzlich über neue Paperless-Updates benachrichtigt. Die tägliche
+    Erinnerung und Update-Meldungen verwenden standardmäßig das zentrale
+    Skript script.home_notification.
+  domain: automation
+  author: HomeLabNext
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/paperless_notifications/paperless_notifications.yaml
+  homeassistant:
+    min_version: "2024.6.0"
+
+  input:
+    paperless:
+      name: Paperless
+      icon: mdi:tray-full
+      input:
+        inbox_sensor:
+          name: Dokumente im Posteingang
+          description: >-
+            Sensor mit einer numerischen Anzahl der Dokumente im Paperless-Posteingang.
+            Unbekannte, nicht verfügbare und nicht numerische Zustände werden ignoriert.
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+        paperless_url:
+          name: Link zur Paperless-Instanz
+          description: Vollständige URL, zum Beispiel https://paperless.example.com
+          selector:
+            text:
+              type: url
+
+    reminder:
+      name: Tägliche Erinnerung
+      icon: mdi:calendar-clock
+      input:
+        reminder_time:
+          name: Erinnerungszeit
+          description: Zu dieser Uhrzeit wird die Anzahl im Posteingang geprüft.
+          default: "19:00:00"
+          selector:
+            time: {}
+        reminder_title:
+          name: Titel der Erinnerung
+          default: "📄 Paperless: Dokumente im Posteingang"
+
+    updates:
+      name: Update-Benachrichtigung (optional)
+      icon: mdi:package-up
+      collapsed: true
+      input:
+        updates_enabled:
+          name: Über Paperless-Updates benachrichtigen
+          default: false
+          selector:
+            boolean: {}
+        update_entity:
+          name: Paperless-Update-Entität
+          description: >-
+            Update-Entität von Paperless. Eine Update-Meldung wird nur bei Zustand
+            on gesendet. Für die einmalige Benachrichtigung muss der Versions-Helfer
+            ausgewählt und verfügbar sein.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: update
+        notified_version_helper:
+          name: Versions-Helfer für Update-Erinnerungen
+          description: >-
+            input_text-Helfer, in dem die zuletzt gemeldete Version gespeichert wird.
+            Erforderlich, wenn Update-Benachrichtigungen aktiviert sind. Lege ihn mit
+            maximal 100 Zeichen an. Der gespeicherte Wert bleibt nach Neustarts erhalten.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_text
+        update_title:
+          name: Titel der Update-Meldung
+          default: "⬆️ Paperless-Update verfügbar"
+
+    notification:
+      name: Benachrichtigungsziel
+      icon: mdi:bell-outline
+      input:
+        notification_script:
+          name: Zentrales Notify-Skript
+          description: Nimmt die Variablen title und message an.
+          default: script.home_notification
+          selector:
+            entity:
+              filter:
+                - domain: script
+
+mode: queued
+max: 10
+max_exceeded: silent
+
+trigger_variables:
+  updates_enabled_trigger: !input updates_enabled
+  update_entity_trigger: !input update_entity
+  version_helper_trigger: !input notified_version_helper
+
+triggers:
+  - trigger: time
+    at: !input reminder_time
+    id: inbox_reminder
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: template
+    id: update_available
+    value_template: >-
+      {% set entity = update_entity_trigger %}
+      {% set helper = version_helper_trigger %}
+      {% set latest = state_attr(entity, 'latest_version') if entity else none %}
+      {% set version_key = latest | string
+          if latest not in [none, '', 'unknown', 'unavailable']
+          else 'version_not_provided' %}
+      {{ updates_enabled_trigger and entity != '' and helper != ''
+         and is_state(entity, 'on') and has_value(helper)
+         and states(helper) != version_key }}
+
+variables:
+  inbox_sensor: !input inbox_sensor
+  paperless_url: !input paperless_url
+  update_entity: !input update_entity
+  updates_enabled: !input updates_enabled
+  notified_version_helper: !input notified_version_helper
+  notification_script: !input notification_script
+
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ trigger is defined and trigger.id == 'inbox_reminder'
+                 and has_value(inbox_sensor)
+                 and states(inbox_sensor) | is_number
+                 and (states(inbox_sensor) | int(0)) > 0
+                 and paperless_url | trim != '' }}
+        sequence:
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: !input reminder_title
+                message: >-
+                  {% set count = states(inbox_sensor) | int %}
+                  {% if count == 1 %}
+                    In Paperless liegt 1 Dokument im Posteingang.
+                  {% else %}
+                    In Paperless liegen {{ count }} Dokumente im Posteingang.
+                  {% endif %}
+                  {{ paperless_url | trim }}
+
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ trigger is defined
+                 and trigger.id in ['update_available', 'startup']
+                 and updates_enabled
+                 and update_entity != ''
+                 and notified_version_helper != ''
+                 and is_state(update_entity, 'on')
+                 and has_value(notified_version_helper) }}
+        sequence:
+          - variables:
+              latest_version: >-
+                {{ state_attr(update_entity, 'latest_version') }}
+              installed_version: >-
+                {{ state_attr(update_entity, 'installed_version') }}
+              version_key: >-
+                {% set latest = state_attr(update_entity, 'latest_version') %}
+                {{ latest | string
+                   if latest not in [none, '', 'unknown', 'unavailable']
+                   else 'version_not_provided' }}
+          - condition: template
+            value_template: >-
+              {{ states(notified_version_helper) != version_key }}
+          - action: script.turn_on
+            target:
+              entity_id: !input notification_script
+            data:
+              variables:
+                title: !input update_title
+                message: >-
+                  {% set installed = installed_version | trim %}
+                  {% set latest = latest_version | trim %}
+                  Paperless meldet ein verfügbares Update.
+                  {% if installed not in ['', 'None', 'unknown', 'unavailable'] %}
+                    Installierte Version: {{ installed }}.
+                  {% endif %}
+                  {% if latest not in ['', 'None', 'unknown', 'unavailable'] %}
+                    Verfügbare Version: {{ latest }}.
+                  {% else %}
+                    Eine Versionsnummer wird von der Update-Entität nicht bereitgestellt.
+                  {% endif %}
+                  {{ paperless_url | trim }}
+          - action: input_text.set_value
+            target:
+              entity_id: !input notified_version_helper
+            data:
+              value: "{{ version_key }}"
