@@ -4,6 +4,16 @@ All notable changes to the HomeLabNext Home Assistant repository are documented 
 
 Blueprints are versioned independently. A repository restructuring does not change blueprint behavior or blueprint versions unless explicitly stated.
 
+## Paperless Notifications
+
+### v0.1.0
+
+- Added a daily inbox reminder with a configurable time (default 19:00), current document count and Paperless URL.
+- Added optional Paperless update notifications with installed/latest version details when available.
+- Added persistent per-version deduplication using a selected input_text helper; startup checks do not repeat the same version.
+- Reused the central notification script interface (title and message).
+- Added offline tests for notification gates, unavailable states and version deduplication.
+
 ## Alexa Motion Music
 
 ### v0.1.0
