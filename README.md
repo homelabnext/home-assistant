@@ -118,6 +118,16 @@ Resume an Alexa Media Player Echo on motion and pause after a configurable perio
 
 [Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Falexa_motion_music%2Falexa_motion_music.yaml)
 
+### Paperless Notifications
+
+Daily reminders for the Paperless inbox and optional one-time-per-version update alerts. Uses the repository's central `script.home_notification` with `title` and `message`.
+
+**Current version:** v0.1.0
+
+[Blueprint file](blueprints/automation/paperless_notifications/paperless_notifications.yaml) · [Documentation](blueprints/automation/paperless_notifications/README.md)
+
+[Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Fhomelabnext%2Fhome-assistant%2Fmain%2Fblueprints%2Fautomation%2Fpaperless_notifications%2Fpaperless_notifications.yaml)
+
 ## How the cover blueprints work together
 
 The blueprints are independent. If the same cover uses both, they can share one `input_boolean` as a Day Mode helper.
@@ -146,6 +156,9 @@ For covers without Adaptive Solar Shading, the Day Mode helper in Morning & Even
 home-assistant/
 ├── blueprints/
 │   └── automation/
+│       ├── paperless_notifications/
+│       │   ├── README.md
+│       │   └── paperless_notifications.yaml
 │       ├── solar_shading/
 │       │   ├── README.md
 │       │   └── solar_shading.yaml
