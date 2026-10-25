@@ -16,7 +16,7 @@ All helpers are optional.
 |---|---|---|
 | Day Mode (`input_boolean`) | No | Connects this cover to Adaptive Solar Shading |
 | Debug status (`input_text`) | No | Shows readable automation status |
-| Manual override (`input_boolean`) | No | Temporarily suppresses automatic movement |
+| Manual override (`input_boolean`) | No | Suppresses automatic movement, including the 5-minute evening recovery and restart recovery. In sunrise/not-before mode, the override remains active until the actual morning opening. |
 | Vacation mode (`input_boolean`) | No | Enables the separate vacation schedule |
 | Window / door contacts (`binary_sensor`) | No | Delays evening closing while a contact is open |
 
@@ -55,4 +55,4 @@ Raw import URL:
 
 ## Version
 
-v0.1.1
+v0.1.6

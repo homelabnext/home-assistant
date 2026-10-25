@@ -4,6 +4,14 @@ All notable changes to the HomeLabNext Home Assistant repository are documented 
 
 Blueprints are versioned independently. A repository restructuring does not change blueprint behavior or blueprint versions unless explicitly stated.
 
+## Morning & Evening Cover Control
+
+### v0.1.6
+
+- Fixed the 5-minute evening recovery closing manually opened covers again before sunrise while a manual override is active.
+- Applied the same override protection to Home Assistant restart recovery.
+- Kept the override active through the configured morning boundary in sunrise/not-before mode until the scheduled opening can actually run.
+
 ## Paperless Notifications
 
 ### v0.1.0

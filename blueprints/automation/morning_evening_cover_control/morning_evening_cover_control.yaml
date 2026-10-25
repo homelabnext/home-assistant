@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.5
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.6
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -13,7 +13,7 @@ blueprint:
     - Manual override (input_boolean): explicit manual lockout. Optionally detect
       direct Home Assistant UI actions; physical switch movement cannot reliably
       be distinguished from integration feedback and is NOT auto-detected.
-      The helper resets at the next morning boundary or fallback timeout.
+      The helper resets at the actual scheduled morning opening or after the fallback timeout.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
     - Missed-trigger recovery: checks every 5 minutes whether an evening
@@ -64,8 +64,9 @@ blueprint:
     manual_override:
       name: Manual override
       description: >-
-        Optional input_boolean. While ON, automatic cover movement is
-        suppressed. Leave empty if you do not need a manual lockout.
+        Optional input_boolean. While ON, automatic movement is suppressed,
+        including 5-minute evening recovery and restart recovery. Leave empty
+        if you do not need a manual lockout.
       default: ""
       selector:
         entity:
@@ -425,9 +426,11 @@ actions:
           {{ (vacation_active_now and trigger.id == 'vacation_morning') or
              (not vacation_active_now and
               ((morning_mode == 'sun' and trigger.id == 'sunrise') or
-               (morning_mode != 'sun' and
+               (morning_mode == 'time' and
                 ((trigger.id == 'weekday_morning' and now().weekday() < 5) or
-                 (trigger.id == 'weekend_morning' and now().weekday() >= 5))))) }}
+                 (trigger.id == 'weekend_morning' and now().weekday() >= 5))) or
+               (morning_mode == 'sun_not_before' and trigger.id == 'sunrise' and
+                now().strftime('%H:%M:%S') >= morning_time_now))) }}
     then:
       - action: input_boolean.turn_off
         target:
@@ -798,6 +801,8 @@ actions:
           - condition: template
             value_template: "{{ not windows_open_now }}"
           - condition: template
+            value_template: "{{ not override_active_now }}"
+          - condition: template
             value_template: "{{ not cover_at_night_position }}"
         sequence:
           - if:
@@ -917,7 +922,7 @@ actions:
               - conditions:
                   - condition: template
                     value_template: >-
-                      {{ enable_evening and
+                      {{ enable_evening and not override_active_now and
                          ((evening_mode == 'time' and after_evening_time) or
                           (evening_mode == 'sun' and is_state('sun.sun', 'below_horizon')) or
                           (evening_mode == 'sun_not_after' and
