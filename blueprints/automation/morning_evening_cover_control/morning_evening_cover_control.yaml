@@ -13,7 +13,7 @@ blueprint:
     - Manual override (input_boolean): explicit manual lockout. Optionally detect
       direct Home Assistant UI actions; physical switch movement cannot reliably
       be distinguished from integration feedback and is NOT auto-detected.
-      The helper resets at the next morning boundary or fallback timeout.
+      The helper resets at the actual scheduled morning opening or after the fallback timeout.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
     - Missed-trigger recovery: checks every 5 minutes whether an evening
@@ -64,8 +64,9 @@ blueprint:
     manual_override:
       name: Manual override
       description: >-
-        Optional input_boolean. While ON, automatic cover movement is
-        suppressed. Leave empty if you do not need a manual lockout.
+        Optional input_boolean. While ON, automatic movement is suppressed,
+        including 5-minute evening recovery and restart recovery. Leave empty
+        if you do not need a manual lockout.
       default: ""
       selector:
         entity:
