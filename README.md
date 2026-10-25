@@ -156,7 +156,10 @@ For covers without Adaptive Solar Shading, the Day Mode helper in Morning & Even
 home-assistant/
 ├── blueprints/
 │   └── automation/
-│       ├── paperless_notifications/\n│       │   ├── README.md\n│       │   └── paperless_notifications.yaml\n│       ├── solar_shading/
+│       ├── paperless_notifications/
+│       │   ├── README.md
+│       │   └── paperless_notifications.yaml
+│       ├── solar_shading/
 │       │   ├── README.md
 │       │   └── solar_shading.yaml
 │       ├── morning_evening_cover_control/
