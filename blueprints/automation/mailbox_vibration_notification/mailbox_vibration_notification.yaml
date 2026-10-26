@@ -1,0 +1,77 @@
+blueprint:
+  name: "HomeLabNext – Briefkasten-Benachrichtigung v0.1.0"
+  description: >-
+    Sendet eine Benachrichtigung über das zentrale Home-Assistant-Skript,
+    sobald der ausgewählte Briefkasten-Vibrationssensor auslöst. Zusätzlich
+    wird ein Input-Boolean-Helper eingeschaltet, damit die Home Status Light
+    den Zustand dauerhaft anzeigen kann, bis die Post abgeholt wurde.
+
+    Für das Statuslicht den Helper in Home Status Light unter „Aufmerksamkeit“
+    auswählen und die Farbe auf Gelb setzen. Den Helper nach dem Leeren des
+    Briefkastens am Dashboard wieder ausschalten.
+  domain: automation
+  author: HomeLabNext
+  source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/mailbox_vibration_notification/mailbox_vibration_notification.yaml
+  homeassistant:
+    min_version: 2024.6.0
+
+  input:
+    vibration_sensor:
+      name: Briefkasten-Vibrationssensor
+      description: Binärsensor, der bei erkannter Vibration auf „on“ wechselt.
+      selector:
+        entity:
+          filter:
+            - domain: binary_sensor
+
+    mail_pending_helper:
+      name: Post im Briefkasten – Helper
+      description: >-
+        Input Boolean, der bei Vibration eingeschaltet wird und bis zum Leeren
+        des Briefkastens aktiv bleibt. Diesen Helper in Home Status Light als
+        Aufmerksamkeitssensor auswählen.
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    notification_script:
+      name: Zentrales Notify-Skript
+      description: Skript, das die Variablen title und message annimmt.
+      default: script.home_notification
+      selector:
+        entity:
+          filter:
+            - domain: script
+
+    notification_title:
+      name: Titel der Benachrichtigung
+      default: "📬 Post war da"
+
+    notification_message:
+      name: Nachricht
+      default: "Im Briefkasten wurde eine Vibration erkannt. Es könnte Post angekommen sein."
+
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input vibration_sensor
+    to: "on"
+    id: mail_arrived
+
+conditions: []
+
+actions:
+  - action: input_boolean.turn_on
+    target:
+      entity_id: !input mail_pending_helper
+
+  - action: script.turn_on
+    target:
+      entity_id: !input notification_script
+    data:
+      variables:
+        title: !input notification_title
+        message: !input notification_message
