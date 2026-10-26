@@ -1,6 +1,6 @@
 # HomeLabNext – Zigbee Thermostat Scheduler
 
-**Version: v0.7.0**
+**Version: v0.8.0**
 
 Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Assistant-`climate`-Entitäten.
 
@@ -17,17 +17,26 @@ Jeder Wochentag sollte genau einem Profil zugewiesen werden. Bei versehentlicher
 
 Änderungen an Zeitprofilen und Temperaturen erfolgen in der Konfiguration der Automation. Nur für den optionalen, zeitlich begrenzten manuellen Override wird ein Input-Datetime-Helper benötigt.
 
+## Aqara-Preset und Heizmodus
+
+Die Voreinstellung des Thermostats wird standardmäßig berücksichtigt:
+
+- **Preset `auto`:** Der Zeitplan steuert die Temperatur.
+- **Preset `manual` oder ein anderes Preset:** Das Thermostat bleibt unverändert. Der Zeitplan greift erst wieder, wenn du das Preset auf `auto` stellst.
+- **Heizmodus `off`:** Bleibt aus. Sobald du den Heizmodus wieder einschaltest und `auto` aktiv ist, greift der Zeitplan beim nächsten Prüfintervall.
+
+Der Wert für das Zeitplan-Preset ist konfigurierbar und bei Aqara üblicherweise `auto`. Thermostate ohne `preset_mode`-Attribut werden weiterhin wie bisher gesteuert.
+
 ## Manuelle Thermostatänderung
 
 Erstelle unter **Einstellungen → Geräte & Dienste → Helfer** einen
 `input_datetime`-Helper mit **Datum und Uhrzeit**. Wähle ihn in der Automation
-aus und stelle die Override-Dauer in Stunden ein. Änderungen am
-Sollwert, an der Betriebsart oder am Preset, die Home Assistant nicht als
-Aufruf dieser Automation erkennt, aktivieren den Override. Der Zeitplan
+aus und stelle die Override-Dauer in Stunden ein. Manuelle Änderungen des Temperatur-Sollwerts im `auto`-Preset, die Home
+Assistant nicht als Aufruf dieser Automation erkennt, aktivieren den Override. Der Zeitplan
 überschreibt diese Einstellung nach Ablauf beim nächsten Prüfintervall wieder.
 
 Der Override gilt für alle Thermostate, die in derselben Automation ausgewählt
-sind. Alarmo-Urlaub, Modus Aus und die Fensterabsenkung behalten Vorrang.
+sind. Alarmo-Urlaub, Modus Aus, ein ausgeschalteter Heizmodus, ein Preset ungleich `auto` und die Fensterabsenkung behalten Vorrang.
 
 Bei einem Home-Assistant- oder Zigbee-Dienst-Neustart bleibt die Ablaufzeit im
 Helper erhalten. Wenn keine manuelle Erkennung gewünscht ist, den Helper leer
