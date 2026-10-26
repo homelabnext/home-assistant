@@ -1,5 +1,7 @@
 # HomeLabNext – Zigbee Thermostat Scheduler
 
+**Version: v0.7.0**
+
 Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Assistant-`climate`-Entitäten.
 
 ## Direkt in der Automation einstellen
@@ -9,7 +11,6 @@ Für Zeitprofile und Temperaturen sind keine Helfer nötig:
 - **Betriebsart:** Auto, Manuell oder Aus. Das ist die feste Betriebsart der Automation.
 - **Zeitplan:** Bis zu drei Profile. Für jedes Profil können beliebige Wochentage ausgewählt und bis zu zwei Zeitfenster eingestellt werden. Die Profile 1 und 2 starten mit den bisherigen Standardgruppen Mo–Fr und Sa–So; Profil 3 ist optional.
 - **Temperaturen:** Komfort, Absenkung und Manuell direkt in den Blueprint-Einstellungen festlegen.
-
 - **Modus zur Laufzeit:** optional einen `input_select`-Helfer aktivieren, wenn der Modus im Dashboard oder per Sprache umgeschaltet werden soll. Er muss genau die Optionen `Aus`, `Auto` und `Manuell` haben. Ist der Helfer nicht verfügbar, fällt die Automation auf die fest eingestellte Betriebsart zurück.
 
 Jeder Wochentag sollte genau einem Profil zugewiesen werden. Bei versehentlicher Mehrfachzuweisung gewinnt Profil 1 vor Profil 2 und Profil 3. Nicht zugewiesene Tage verwenden die Absenktemperatur. Zeitfenster über Mitternacht bleiben dem Profil des Tages zugeordnet, an dem sie beginnen.
