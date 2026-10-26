@@ -4,14 +4,32 @@ Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Ass
 
 ## Direkt in der Automation einstellen
 
-Für den normalen Betrieb sind keine Helfer für Zeitplan oder Temperaturen nötig:
+Für Zeitprofile und Temperaturen sind keine Helfer nötig:
 
 - **Betriebsart:** Auto, Manuell oder Aus. Das ist die feste Betriebsart der Automation.
-- **Zeitplan:** Getrennte Zeitfenster für Montag bis Freitag und Samstag/Sonntag. Pro Gruppe ist ein zweites Zeitfenster optional; auch Zeitfenster über Mitternacht sind möglich.
+- **Zeitplan:** Bis zu drei Profile. Für jedes Profil können beliebige Wochentage ausgewählt und bis zu zwei Zeitfenster eingestellt werden. Die Profile 1 und 2 starten mit den bisherigen Standardgruppen Mo–Fr und Sa–So; Profil 3 ist optional.
 - **Temperaturen:** Komfort, Absenkung und Manuell direkt in den Blueprint-Einstellungen festlegen.
+
+Jeder Wochentag sollte genau einem Profil zugewiesen werden. Bei versehentlicher Mehrfachzuweisung gewinnt Profil 1 vor Profil 2 und Profil 3. Nicht zugewiesene Tage verwenden die Absenktemperatur. Zeitfenster über Mitternacht bleiben dem Profil des Tages zugeordnet, an dem sie beginnen.
 - **Modus zur Laufzeit:** optional einen `input_select`-Helfer aktivieren, wenn der Modus im Dashboard oder per Sprache umgeschaltet werden soll. Er muss genau die Optionen `Aus`, `Auto` und `Manuell` haben. Ist der Helfer nicht verfügbar, fällt die Automation auf die fest eingestellte Betriebsart zurück.
 
-Änderungen an diesen Werten erfolgen in der Konfiguration der Automation. Helfer sind nur nötig, wenn Werte im laufenden Betrieb außerhalb der Automationskonfiguration veränderbar sein sollen.
+Änderungen an Zeitprofilen und Temperaturen erfolgen in der Konfiguration der Automation. Nur für den optionalen, zeitlich begrenzten manuellen Override wird ein Input-Datetime-Helper benötigt.
+
+## Manuelle Thermostatänderung
+
+Ein optionaler `input_datetime`-Helper speichert, bis wann manuelle Änderungen
+geschützt bleiben. Er muss **Datum und Uhrzeit** enthalten. Wähle ihn in der
+Automation aus und stelle die Override-Dauer in Stunden ein. Änderungen am
+Sollwert, an der Betriebsart oder am Preset, die Home Assistant nicht als
+Aufruf dieser Automation erkennt, aktivieren den Override. Der Zeitplan
+überschreibt diese Einstellung nach Ablauf beim nächsten Prüfintervall wieder.
+
+Der Override gilt für alle Thermostate, die in derselben Automation ausgewählt
+sind. Alarmo-Urlaub, Modus Aus und die Fensterabsenkung behalten Vorrang.
+
+Bei einem Home-Assistant- oder Zigbee-Dienst-Neustart bleibt die Ablaufzeit im
+Helper erhalten. Wenn keine manuelle Erkennung gewünscht ist, den Helper leer
+lassen.
 
 ## Optionale Funktionen
 
