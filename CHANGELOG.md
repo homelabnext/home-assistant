@@ -6,6 +6,11 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Morning & Evening Cover Control
 
+### v0.1.7
+
+- Added optional physical wall switch input detection using selected Shelly event or binary_sensor entities.
+- Physical switch presses activate the existing manual override helper, preventing schedule and recovery logic from reversing the movement.
+
 ### v0.1.6
 
 - Fixed the 5-minute evening recovery closing manually opened covers again before sunrise while a manual override is active.
