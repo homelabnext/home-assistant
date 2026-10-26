@@ -23,6 +23,7 @@ BLUEPRINT = yaml.load(
 ENV = Environment(undefined=StrictUndefined)
 SCHEDULE_TEMPLATE = BLUEPRINT["variables"]["scheduled_now"]
 MANUAL_CHANGE_TEMPLATE = BLUEPRINT["variables"]["manual_change_detected"]
+CONTROL_ENTITIES_TEMPLATE = BLUEPRINT["variables"]["thermostat_control_entities"]
 
 
 def schedule_is_active(moment, **values):
@@ -63,10 +64,21 @@ def climate_state(state, attrs, parent_id=None, user_id=None):
 def manual_change_is_detected(from_state, to_state):
     return ENV.from_string(MANUAL_CHANGE_TEMPLATE).render(
         manual_override_until_helper="input_datetime.thermostat_override_until",
+        respect_thermostat_preset=True,
+        scheduler_preset_mode="auto",
         trigger=SimpleNamespace(
             id="thermostat_changed", from_state=from_state, to_state=to_state
         ),
     ).strip().lower() == "true"
+
+
+def controlled_entities(*entities, respect=True, schedule_preset="auto"):
+    return ENV.from_string(CONTROL_ENTITIES_TEMPLATE).render(
+        thermostat_entities=[entity.entity_id for entity in entities],
+        respect_thermostat_preset=respect,
+        scheduler_preset_mode=schedule_preset,
+        expand=lambda _: list(entities),
+    ).strip()
 
 
 class ThermostatSchedulerTests(unittest.TestCase):
@@ -118,6 +130,24 @@ class ThermostatSchedulerTests(unittest.TestCase):
         self.assertTrue(manual_change_is_detected(before, manual))
         self.assertFalse(manual_change_is_detected(before, scheduled))
         self.assertFalse(manual_change_is_detected(before, current_only))
+
+
+    def test_target_change_in_manual_preset_does_not_start_override(self):
+        before = climate_state("heat", {"temperature": 20, "preset_mode": "manual"})
+        after = climate_state("heat", {"temperature": 22, "preset_mode": "manual"})
+        self.assertFalse(manual_change_is_detected(before, after))
+
+    def test_scheduler_controls_only_auto_preset_and_active_hvac_entities(self):
+        auto = SimpleNamespace(entity_id="climate.auto", state="heat", attributes={"preset_mode": "auto"})
+        manual = SimpleNamespace(entity_id="climate.manual", state="heat", attributes={"preset_mode": "manual"})
+        off = SimpleNamespace(entity_id="climate.off", state="off", attributes={"preset_mode": "auto"})
+        self.assertIn("climate.auto", controlled_entities(auto, manual, off))
+        self.assertNotIn("climate.manual", controlled_entities(auto, manual, off))
+        self.assertNotIn("climate.off", controlled_entities(auto, manual, off))
+
+    def test_disabling_preset_respect_keeps_legacy_behavior(self):
+        manual = SimpleNamespace(entity_id="climate.manual", state="heat", attributes={"preset_mode": "manual"})
+        self.assertIn("climate.manual", controlled_entities(manual, respect=False))
 
 
 if __name__ == "__main__":
