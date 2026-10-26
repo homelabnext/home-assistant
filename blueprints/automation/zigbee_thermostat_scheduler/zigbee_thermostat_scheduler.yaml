@@ -1,12 +1,12 @@
 blueprint:
   name: "HomeLabNext – Zigbee Thermostat Scheduler v0.7.0"
   description: >
-    Steuert Climate-Entitäten mit getrennten Zeitfenstern für Wochentage
-    und Wochenenden sowie direkt einstellbaren Temperaturen. Ein optionaler
-    input_select erlaubt
-    zusätzlich das Umschalten zwischen Aus, Auto und Manuell über Dashboard
-    oder Sprachsteuerung. Fensterkontakt, Alarmo-Urlaub und Anwesenheitsregel
-    sind optional.
+    Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
+    können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
+    Temperaturen bleiben direkt einstellbar. Ein optionaler input_select
+    erlaubt das Umschalten zwischen Aus, Auto und Manuell. Fensterkontakt,
+    Alarmo-Urlaub, Anwesenheitsregel und ein zeitlich begrenzter manueller
+    Thermostat-Override sind optional.
   domain: automation
   source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
   homeassistant:
@@ -542,12 +542,6 @@ actions:
             id: thermostat_changed
         sequence:
           - stop: Thermostat-Zustandsänderung ohne manuelle Sollwertänderung ignoriert.
-
-      - conditions:
-          - condition: template
-            value_template: "{{ manual_override_active }}"
-        sequence:
-          - stop: Manueller Override ist noch aktiv.
 
       - conditions:
           - condition: template
