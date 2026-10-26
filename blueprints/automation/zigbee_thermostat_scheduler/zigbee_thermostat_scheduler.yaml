@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.7.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.8.0"
   description: >
     Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
     können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
@@ -51,6 +51,22 @@ blueprint:
           default: false
           selector:
             boolean:
+        respect_thermostat_preset:
+          name: Thermostat-Voreinstellung berücksichtigen
+          description: >-
+            Wenn aktiv, steuert der Zeitplan das Thermostat nur, wenn sein
+            preset_mode dem unten eingestellten Auto-Preset entspricht.
+            Voreinstellung manual und andere Presets lassen den Gerätezustand
+            unverändert. Ohne preset_mode-Attribut bleibt der Scheduler aktiv.
+          default: true
+          selector:
+            boolean:
+        scheduler_preset_mode:
+          name: Preset für den Zeitplan
+          description: Interner preset_mode-Wert des Thermostats, bei Aqara üblicherweise auto.
+          default: auto
+          selector:
+            text:
         mode_helper:
           name: Optionaler Modus-Helfer
           description: input_select mit exakt den Optionen Aus, Auto und Manuell. Nur bei aktivierter Laufzeit-Umschaltung verwenden.
@@ -384,7 +400,10 @@ max: 50
 max_exceeded: silent
 
 variables:
+  thermostat_entities: !input thermostat_entities
   default_mode: !input default_mode
+  respect_thermostat_preset: !input respect_thermostat_preset
+  scheduler_preset_mode: !input scheduler_preset_mode
   use_mode_helper: !input use_mode_helper
   mode_helper: !input mode_helper
   profile_1_days: !input profile_1_days
@@ -429,6 +448,18 @@ variables:
        and has_value(manual_override_until_helper)
        and (as_timestamp(states(manual_override_until_helper), default=0)
             > as_timestamp(now())) }}
+  thermostat_control_entities: >-
+    {% set ns = namespace(entities=[]) %}
+    {% for entity in expand(thermostat_entities) %}
+      {% set preset = entity.attributes.get('preset_mode') %}
+      {% if entity.state not in ['off', 'unknown', 'unavailable']
+            and (not respect_thermostat_preset
+                 or preset is none
+                 or preset == scheduler_preset_mode) %}
+        {% set ns.entities = ns.entities + [entity.entity_id] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.entities }}
   manual_change_detected: >-
     {{ manual_override_until_helper != ''
        and trigger is defined and trigger.id == 'thermostat_changed'
@@ -437,17 +468,33 @@ variables:
        and trigger.from_state.state not in ['unknown', 'unavailable']
        and trigger.to_state.state not in ['unknown', 'unavailable']
        and trigger.to_state.context.parent_id is none
+       and (not respect_thermostat_preset
+            or trigger.to_state.attributes.get('preset_mode') is none
+            or trigger.to_state.attributes.get('preset_mode') == scheduler_preset_mode)
        and (
-         trigger.from_state.state != trigger.to_state.state
-         or trigger.from_state.attributes.get('temperature')
+         trigger.from_state.attributes.get('temperature')
             != trigger.to_state.attributes.get('temperature')
          or trigger.from_state.attributes.get('target_temp_low')
             != trigger.to_state.attributes.get('target_temp_low')
          or trigger.from_state.attributes.get('target_temp_high')
             != trigger.to_state.attributes.get('target_temp_high')
+       ) }}
+  thermostat_schedule_mode_changed: >-
+    {{ trigger is defined and trigger.id == 'thermostat_changed'
+       and trigger.from_state is not none
+       and trigger.to_state is not none
+       and (
+         trigger.from_state.state != trigger.to_state.state
          or trigger.from_state.attributes.get('preset_mode')
             != trigger.to_state.attributes.get('preset_mode')
        ) }}
+  preset_switched_to_schedule: >-
+    {{ respect_thermostat_preset
+       and trigger is defined and trigger.id == 'thermostat_changed'
+       and trigger.from_state is not none
+       and trigger.to_state is not none
+       and trigger.from_state.attributes.get('preset_mode') != scheduler_preset_mode
+       and trigger.to_state.attributes.get('preset_mode') == scheduler_preset_mode }}
   scheduled_now: >-
     {% set day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] %}
     {% set today = day_names[now().weekday()] %}
@@ -538,35 +585,50 @@ actions:
           - stop: Manuelle Thermostatänderung – Override wurde aktiviert.
 
       - conditions:
+          - condition: template
+            value_template: >-
+              {{ preset_switched_to_schedule and manual_override_until_helper != '' }}
+        sequence:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ manual_override_until_helper }}"
+            data:
+              datetime: "2000-01-01 00:00:00"
+          - stop: Auto-Preset gewählt – der Zeitplan wird beim nächsten Prüfintervall angewendet.
+
+      - conditions:
           - condition: trigger
             id: thermostat_changed
+          - condition: template
+            value_template: "{{ not thermostat_schedule_mode_changed }}"
         sequence:
-          - stop: Thermostat-Zustandsänderung ohne manuelle Sollwertänderung ignoriert.
+          - stop: Thermostat-Statusänderung ohne Sollwert- oder Moduswechsel ignoriert.
 
       - conditions:
           - condition: template
             value_template: >-
               {{ vacation_enabled and vacation_alarm != ''
-                 and is_state(vacation_alarm, 'armed_vacation') }}
+                 and is_state(vacation_alarm, 'armed_vacation')
+                 and thermostat_control_entities | length > 0 }}
         sequence:
           - action: climate.set_hvac_mode
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               hvac_mode: heat
           - action: climate.set_temperature
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               temperature: "{{ vacation_temperature | float }}"
 
       - conditions:
           - condition: template
-            value_template: "{{ current_mode == 'Aus' }}"
+            value_template: "{{ current_mode == 'Aus' and thermostat_control_entities | length > 0 }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               hvac_mode: off
 
@@ -574,16 +636,16 @@ actions:
           - condition: template
             value_template: >-
               {{ expand(window_contacts) | selectattr('state', 'eq', 'on')
-                 | list | count > 0 }}
+                 | list | count > 0 and thermostat_control_entities | length > 0 }}
         sequence:
           - action: climate.set_hvac_mode
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               hvac_mode: heat
           - action: climate.set_temperature
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               temperature: "{{ window_open_temperature | float }}"
 
@@ -595,45 +657,45 @@ actions:
 
       - conditions:
           - condition: template
-            value_template: "{{ current_mode == 'Manuell' }}"
+            value_template: "{{ current_mode == 'Manuell' and thermostat_control_entities | length > 0 }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               hvac_mode: heat
           - action: climate.set_temperature
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               temperature: "{{ manual_temperature | float }}"
 
       - conditions:
           - condition: template
-            value_template: "{{ current_mode == 'Auto' and use_comfort_temperature }}"
+            value_template: "{{ current_mode == 'Auto' and use_comfort_temperature and thermostat_control_entities | length > 0 }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               hvac_mode: heat
           - action: climate.set_temperature
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               temperature: "{{ comfort_temperature | float }}"
 
       - conditions:
           - condition: template
-            value_template: "{{ current_mode == 'Auto' and not use_comfort_temperature }}"
+            value_template: "{{ current_mode == 'Auto' and not use_comfort_temperature and thermostat_control_entities | length > 0 }}"
         sequence:
           - action: climate.set_hvac_mode
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               hvac_mode: heat
           - action: climate.set_temperature
             target:
-              entity_id: !input thermostat_entities
+              entity_id: "{{ thermostat_control_entities }}"
             data:
               temperature: "{{ setback_temperature | float }}"
