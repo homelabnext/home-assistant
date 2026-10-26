@@ -6,6 +6,12 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.8.0
+
+- Added Aqara preset-aware control: only the configured `auto` preset is scheduled; `manual` and other presets pass through unchanged.
+- Kept a thermostat in HVAC `off` off until heating is turned back on.
+- Applied temporary target-temperature overrides only while the thermostat is in the scheduler preset; returning to `auto` clears an earlier override expiry.
+
 ### v0.7.0
 
 - Replaced weekday/weekend schedule groups with three selectable weekday profiles, each with up to two time windows.
