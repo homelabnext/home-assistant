@@ -1,5 +1,5 @@
 blueprint:
-  name: "Home Status Light"
+  name: "Home Status Light v0.1.2"
   description: >
     Zentrale Statuslampe für Home Assistant.
 
@@ -47,6 +47,7 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+            - domain: input_boolean
 
     task_start_time:
       name: Aufgabe – früheste Anzeigezeit
@@ -67,6 +68,7 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+            - domain: input_boolean
 
     maintenance_sensors:
       name: Wartung
@@ -77,6 +79,7 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+            - domain: input_boolean
 
     warning_sensors:
       name: Warnung
@@ -87,6 +90,7 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+            - domain: input_boolean
 
     critical_sensors:
       name: Kritisch
@@ -97,6 +101,7 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+            - domain: input_boolean
 
     alarm_sensors:
       name: Alarm
@@ -107,6 +112,7 @@ blueprint:
           multiple: true
           filter:
             - domain: binary_sensor
+            - domain: input_boolean
 
     task_color:
       name: Farbe – Aufgabe
