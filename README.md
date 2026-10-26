@@ -42,7 +42,7 @@ https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/so
 
 Daily opening and closing control for covers using sunrise/sunset or fixed schedules, weekday/weekend limits, vacation mode, window contacts, manual override and optional coordination with Adaptive Solar Shading.
 
-**Current version:** v0.1.1
+**Current version:** v0.1.7
 
 **Blueprint file**
 
@@ -118,6 +118,24 @@ Resume an Alexa Media Player Echo on motion and pause after a configurable perio
 
 [Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Falexa_motion_music%2Falexa_motion_music.yaml)
 
+### Home Status Light
+
+Central RGB status light driven by binary sensors or persistent Input Boolean helpers. Configure a status category color, priority and optional blinking behavior.
+
+**Current version:** v0.1.2
+
+[Blueprint file](blueprints/automation/home_status_light/home_status_light.yaml) · [Documentation](blueprints/automation/home_status_light/README.md)
+
+### Mailbox Vibration Notification
+
+Notifies through the central script when the mailbox vibration sensor triggers and latches a selected Input Boolean until the mail is collected. Use that helper as a Home Status Light source and set its Attention color to yellow.
+
+**Current version:** v0.1.0
+
+[Blueprint file](blueprints/automation/mailbox_vibration_notification/mailbox_vibration_notification.yaml) · [Documentation](blueprints/automation/mailbox_vibration_notification/README.md)
+
+[Import into Home Assistant](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Fhomelabnext%2Fhome-assistant%2Fmain%2Fblueprints%2Fautomation%2Fmailbox_vibration_notification%2Fmailbox_vibration_notification.yaml)
+
 ### Paperless Notifications
 
 Daily reminders for the Paperless inbox and optional one-time-per-version update alerts. Uses the repository's central `script.home_notification` with `title` and `message`.
@@ -156,7 +174,7 @@ For covers without Adaptive Solar Shading, the Day Mode helper in Morning & Even
 home-assistant/
 ├── blueprints/
 │   └── automation/
-│       ├── paperless_notifications/
+│       ├── mailbox_vibration_notification/\n│       │   ├── README.md\n│       │   └── mailbox_vibration_notification.yaml\n│       ├── home_status_light/\n│       │   ├── README.md\n│       │   └── home_status_light.yaml\n│       ├── paperless_notifications/
 │       │   ├── README.md
 │       │   └── paperless_notifications.yaml
 │       ├── solar_shading/
@@ -224,7 +242,7 @@ Blueprints are versioned independently. Release tags should identify both the co
 solar-shading-v0.1.3
 morning-evening-v0.1.1
 starlink-position-monitor-v0.1.4
-waste-collection-notification-v0.1.1
+home-status-light-v0.1.2\nmailbox-vibration-notification-v0.1.0\nwaste-collection-notification-v0.1.1
 window-open-notification-v0.1.0
 ventilation-notification-v0.1.0
 alexa-motion-music-v0.1.0

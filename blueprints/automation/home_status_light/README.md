@@ -1,8 +1,8 @@
 # Home Status Light
 
-**Version: v0.1.1**
+**Version: v0.1.2**
 
-Zentrale Statuslampe für Home Assistant. Mehrere Binary-Sensoren werden Kategorien zugeordnet; die höchste aktive Priorität bestimmt Farbe, Helligkeit und optionales Blinken der ausgewählten RGB-Lampe.
+Zentrale Statuslampe für Home Assistant. Binary-Sensoren und Input-Boolean-Helper werden Kategorien zugeordnet; die höchste aktive Priorität bestimmt Farbe, Helligkeit und optionales Blinken der ausgewählten RGB-Lampe.
 
 [Blueprint in Home Assistant importieren](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fhomelabnext%2Fhome-assistant%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fhome_status_light%2Fhome_status_light.yaml)
 
@@ -32,6 +32,14 @@ Bei mehreren gleichzeitig aktiven Zuständen gewinnt immer die höchste Priorit�
 
 Farben und Helligkeiten können in der Blueprint-Instanz angepasst werden. Für Kritisch und Alarm kann Blinken separat aktiviert werden.
 
+## Dauerhafte Zustände mit Input Boolean
+
+Für Zustände, die nach einem kurzen Ereignis sichtbar bleiben sollen, kann ein
+`input_boolean` als Statusquelle verwendet werden. Beispiel Briefkasten: Ein
+Blueprint schaltet den Helper nach erkannter Vibration ein. Die Statuslampe
+zeigt ihn unter **Aufmerksamkeit** an. Den Helper schaltest du aus, sobald die
+Post abgeholt wurde.
+
 ## Zeitsteuerung für Aufgaben
 
 Für die Kategorie **Aufgabe** gibt es die Einstellung **Aufgabe – früheste Anzeigezeit**. Standard ist `17:00:00`.
@@ -43,7 +51,7 @@ Andere Kategorien wie Warnung, Kritisch oder Alarm sind von dieser Zeitbegrenzun
 ## Voraussetzungen
 
 - Eine Home-Assistant-Light-Entität mit RGB-Farbunterstützung.
-- Mindestens ein Binary-Sensor für eine Statuskategorie.
+- Mindestens ein Binary-Sensor oder Input-Boolean-Helper für eine Statuskategorie.
 - Die eigentliche Bestätigungs- oder Erledigt-Logik liegt außerhalb des Blueprints. Der Blueprint reagiert darauf, dass ein Status-Binary-Sensor von `on` auf `off` wechselt.
 
 ## Beispiel: Müll rausstellen
@@ -69,4 +77,4 @@ Die YAML-Datei kann alternativ unter `/config/blueprints/automation/homelabnext/
 
 ## Stand
 
-Version `v0.1.1` ergänzt eine frei einstellbare Startzeit für die Kategorie Aufgabe. Dadurch kann z. B. Müll erst am Nachmittag oder Abend optisch signalisiert werden, obwohl der zugrunde liegende Binary-Sensor bereits seit Mitternacht aktiv ist.
+Version `v0.1.2` ergänzt eine frei einstellbare Startzeit für die Kategorie Aufgabe. Dadurch kann z. B. Müll erst am Nachmittag oder Abend optisch signalisiert werden, obwohl der zugrunde liegende Binary-Sensor bereits seit Mitternacht aktiv ist.

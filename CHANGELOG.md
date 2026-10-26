@@ -4,6 +4,20 @@ All notable changes to the HomeLabNext Home Assistant repository are documented 
 
 Blueprints are versioned independently. A repository restructuring does not change blueprint behavior or blueprint versions unless explicitly stated.
 
+## Mailbox Vibration Notification
+
+### v0.1.0
+
+- Added a notification on each vibration sensor transition to `on` through the central notification script.
+- Latched a selected Input Boolean helper until the mailbox is emptied, allowing a persistent status light.
+- Added setup documentation for the Home Status Light integration.
+
+## Home Status Light
+
+### v0.1.2
+
+- Allowed Input Boolean helpers as status sources alongside binary sensors, so short events can drive persistent status indicators.
+
 ## Morning & Evening Cover Control
 
 ### v0.1.7
