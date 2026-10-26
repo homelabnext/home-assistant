@@ -1,5 +1,7 @@
 # Briefkasten-Benachrichtigung
 
+**Version: v0.1.0**
+
 Sendet bei einer erkannten Vibration eine Benachrichtigung über das zentrale Skript
 `script.home_notification` und merkt den Posteingang in einem `input_boolean`.
 
