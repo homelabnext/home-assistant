@@ -1,12 +1,12 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.6.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.7.0"
   description: >
-    Steuert Climate-Entitäten mit getrennten Zeitfenstern für Wochentage
-    und Wochenenden sowie direkt einstellbaren Temperaturen. Ein optionaler
-    input_select erlaubt
-    zusätzlich das Umschalten zwischen Aus, Auto und Manuell über Dashboard
-    oder Sprachsteuerung. Fensterkontakt, Alarmo-Urlaub und Anwesenheitsregel
-    sind optional.
+    Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
+    können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
+    Temperaturen bleiben direkt einstellbar. Ein optionaler input_select
+    erlaubt das Umschalten zwischen Aus, Auto und Manuell. Fensterkontakt,
+    Alarmo-Urlaub, Anwesenheitsregel und ein zeitlich begrenzter manueller
+    Thermostat-Override sind optional.
   domain: automation
   source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
   homeassistant:
@@ -91,59 +91,181 @@ blueprint:
               mode: box
 
     schedule_section:
-      name: Wochenzeitplan
+      name: Wochenzeitplan – Tagesprofile
       icon: mdi:calendar-clock
       input:
-        weekday_start:
-          name: Wochentage – Zeitfenster Beginn
+        profile_1_days:
+          name: Profil 1 – Wochentage
+          description: Erste Auswahl hat Vorrang, wenn ein Tag versehentlich mehrfach zugeordnet wird.
+          default: ["mon", "tue", "wed", "thu", "fri"]
+          selector:
+            select:
+              multiple: true
+              mode: dropdown
+              options:
+                - label: Montag
+                  value: mon
+                - label: Dienstag
+                  value: tue
+                - label: Mittwoch
+                  value: wed
+                - label: Donnerstag
+                  value: thu
+                - label: Freitag
+                  value: fri
+                - label: Samstag
+                  value: sat
+                - label: Sonntag
+                  value: sun
+        profile_1_start:
+          name: Profil 1 – Zeitfenster Beginn
           default: "06:00:00"
           selector:
             time:
-        weekday_end:
-          name: Wochentage – Zeitfenster Ende
+        profile_1_end:
+          name: Profil 1 – Zeitfenster Ende
           default: "22:00:00"
           selector:
             time:
-        weekday_second_window_enabled:
-          name: Wochentage – zweites Zeitfenster aktivieren
+        profile_1_second_window_enabled:
+          name: Profil 1 – zweites Zeitfenster aktivieren
           default: false
           selector:
             boolean:
-        weekday_second_start:
-          name: Wochentage – zweites Zeitfenster Beginn
+        profile_1_second_start:
+          name: Profil 1 – zweites Zeitfenster Beginn
           default: "16:00:00"
           selector:
             time:
-        weekday_second_end:
-          name: Wochentage – zweites Zeitfenster Ende
+        profile_1_second_end:
+          name: Profil 1 – zweites Zeitfenster Ende
           default: "22:00:00"
           selector:
             time:
-        weekend_start:
-          name: Wochenende – Zeitfenster Beginn
+
+        profile_2_days:
+          name: Profil 2 – Wochentage
+          default: ["sat", "sun"]
+          selector:
+            select:
+              multiple: true
+              mode: dropdown
+              options:
+                - label: Montag
+                  value: mon
+                - label: Dienstag
+                  value: tue
+                - label: Mittwoch
+                  value: wed
+                - label: Donnerstag
+                  value: thu
+                - label: Freitag
+                  value: fri
+                - label: Samstag
+                  value: sat
+                - label: Sonntag
+                  value: sun
+        profile_2_start:
+          name: Profil 2 – Zeitfenster Beginn
           default: "08:00:00"
           selector:
             time:
-        weekend_end:
-          name: Wochenende – Zeitfenster Ende
+        profile_2_end:
+          name: Profil 2 – Zeitfenster Ende
           default: "23:00:00"
           selector:
             time:
-        weekend_second_window_enabled:
-          name: Wochenende – zweites Zeitfenster aktivieren
+        profile_2_second_window_enabled:
+          name: Profil 2 – zweites Zeitfenster aktivieren
           default: false
           selector:
             boolean:
-        weekend_second_start:
-          name: Wochenende – zweites Zeitfenster Beginn
+        profile_2_second_start:
+          name: Profil 2 – zweites Zeitfenster Beginn
           default: "16:00:00"
           selector:
             time:
-        weekend_second_end:
-          name: Wochenende – zweites Zeitfenster Ende
+        profile_2_second_end:
+          name: Profil 2 – zweites Zeitfenster Ende
           default: "23:00:00"
           selector:
             time:
+
+        profile_3_days:
+          name: Profil 3 – Wochentage (optional)
+          description: Leer lassen, wenn du nur zwei Profile benötigst.
+          default: []
+          selector:
+            select:
+              multiple: true
+              mode: dropdown
+              options:
+                - label: Montag
+                  value: mon
+                - label: Dienstag
+                  value: tue
+                - label: Mittwoch
+                  value: wed
+                - label: Donnerstag
+                  value: thu
+                - label: Freitag
+                  value: fri
+                - label: Samstag
+                  value: sat
+                - label: Sonntag
+                  value: sun
+        profile_3_start:
+          name: Profil 3 – Zeitfenster Beginn
+          default: "06:00:00"
+          selector:
+            time:
+        profile_3_end:
+          name: Profil 3 – Zeitfenster Ende
+          default: "22:00:00"
+          selector:
+            time:
+        profile_3_second_window_enabled:
+          name: Profil 3 – zweites Zeitfenster aktivieren
+          default: false
+          selector:
+            boolean:
+        profile_3_second_start:
+          name: Profil 3 – zweites Zeitfenster Beginn
+          default: "16:00:00"
+          selector:
+            time:
+        profile_3_second_end:
+          name: Profil 3 – zweites Zeitfenster Ende
+          default: "22:00:00"
+          selector:
+            time:
+
+    manual_override_section:
+      name: Manuelle Thermostat-Übersteuerung
+      icon: mdi:hand-thermometer
+      collapsed: true
+      input:
+        manual_override_until_helper:
+          name: Override-Ablaufzeit
+          description: >-
+            Optionaler input_datetime-Helper mit Datum UND Uhrzeit. Wenn
+            ausgewählt, werden manuelle Sollwert- oder Betriebsartänderungen
+            für die eingestellte Dauer nicht vom Zeitplan überschrieben.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_datetime
+        manual_override_hours:
+          name: Override-Dauer
+          default: 2
+          selector:
+            number:
+              min: 0.5
+              max: 24
+              step: 0.5
+              unit_of_measurement: h
+              mode: box
 
     protection_section:
       name: Fenster und Urlaub (optional)
@@ -257,23 +379,34 @@ blueprint:
                 - label: Alle 10 Minuten
                   value: "/10"
 
-mode: restart
+mode: queued
+max: 50
 max_exceeded: silent
 
 variables:
   default_mode: !input default_mode
   use_mode_helper: !input use_mode_helper
   mode_helper: !input mode_helper
-  weekday_start: !input weekday_start
-  weekday_end: !input weekday_end
-  weekday_second_window_enabled: !input weekday_second_window_enabled
-  weekday_second_start: !input weekday_second_start
-  weekday_second_end: !input weekday_second_end
-  weekend_start: !input weekend_start
-  weekend_end: !input weekend_end
-  weekend_second_window_enabled: !input weekend_second_window_enabled
-  weekend_second_start: !input weekend_second_start
-  weekend_second_end: !input weekend_second_end
+  profile_1_days: !input profile_1_days
+  profile_1_start: !input profile_1_start
+  profile_1_end: !input profile_1_end
+  profile_1_second_window_enabled: !input profile_1_second_window_enabled
+  profile_1_second_start: !input profile_1_second_start
+  profile_1_second_end: !input profile_1_second_end
+  profile_2_days: !input profile_2_days
+  profile_2_start: !input profile_2_start
+  profile_2_end: !input profile_2_end
+  profile_2_second_window_enabled: !input profile_2_second_window_enabled
+  profile_2_second_start: !input profile_2_second_start
+  profile_2_second_end: !input profile_2_second_end
+  profile_3_days: !input profile_3_days
+  profile_3_start: !input profile_3_start
+  profile_3_end: !input profile_3_end
+  profile_3_second_window_enabled: !input profile_3_second_window_enabled
+  profile_3_second_start: !input profile_3_second_start
+  profile_3_second_end: !input profile_3_second_end
+  manual_override_until_helper: !input manual_override_until_helper
+  manual_override_hours: !input manual_override_hours
   window_contacts: !input window_contacts
   vacation_enabled: !input vacation_enabled
   vacation_alarm: !input vacation_alarm
@@ -291,40 +424,81 @@ variables:
   current_mode: >-
     {{ states(mode_helper) if use_mode_helper and mode_helper != ''
        and has_value(mode_helper) else default_mode }}
+  manual_override_active: >-
+    {{ manual_override_until_helper != ''
+       and has_value(manual_override_until_helper)
+       and (as_timestamp(states(manual_override_until_helper), default=0)
+            > as_timestamp(now())) }}
+  manual_change_detected: >-
+    {{ manual_override_until_helper != ''
+       and trigger is defined and trigger.id == 'thermostat_changed'
+       and trigger.from_state is not none
+       and trigger.to_state is not none
+       and trigger.from_state.state not in ['unknown', 'unavailable']
+       and trigger.to_state.state not in ['unknown', 'unavailable']
+       and trigger.to_state.context.parent_id is none
+       and (
+         trigger.from_state.state != trigger.to_state.state
+         or trigger.from_state.attributes.get('temperature')
+            != trigger.to_state.attributes.get('temperature')
+         or trigger.from_state.attributes.get('target_temp_low')
+            != trigger.to_state.attributes.get('target_temp_low')
+         or trigger.from_state.attributes.get('target_temp_high')
+            != trigger.to_state.attributes.get('target_temp_high')
+         or trigger.from_state.attributes.get('preset_mode')
+            != trigger.to_state.attributes.get('preset_mode')
+       ) }}
   scheduled_now: >-
+    {% set day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] %}
+    {% set today = day_names[now().weekday()] %}
+    {% set yesterday = day_names[(now().weekday() - 1) % 7] %}
     {% set current = now().strftime('%H:%M:%S') %}
-    {% set is_weekday = now().weekday() < 5 %}
-    {% set is_weekend = now().weekday() >= 5 %}
-    {% set weekday_first =
-      (is_weekday and (
-        (weekday_start <= weekday_end and weekday_start <= current < weekday_end)
-        or (weekday_start > weekday_end and current >= weekday_start)))
-      or (weekday_start > weekday_end and now().weekday() in [1, 2, 3, 4, 5]
-          and current < weekday_end) %}
-    {% set weekday_second = weekday_second_window_enabled and (
-      (is_weekday and (
-        (weekday_second_start <= weekday_second_end
-         and weekday_second_start <= current < weekday_second_end)
-        or (weekday_second_start > weekday_second_end
-            and current >= weekday_second_start)))
-      or (weekday_second_start > weekday_second_end
-          and now().weekday() in [1, 2, 3, 4, 5]
-          and current < weekday_second_end)) %}
-    {% set weekend_first =
-      (is_weekend and (
-        (weekend_start <= weekend_end and weekend_start <= current < weekend_end)
-        or (weekend_start > weekend_end and current >= weekend_start)))
-      or (weekend_start > weekend_end and now().weekday() in [6, 0]
-          and current < weekend_end) %}
-    {% set weekend_second = weekend_second_window_enabled and (
-      (is_weekend and (
-        (weekend_second_start <= weekend_second_end
-         and weekend_second_start <= current < weekend_second_end)
-        or (weekend_second_start > weekend_second_end
-            and current >= weekend_second_start)))
-      or (weekend_second_start > weekend_second_end
-          and now().weekday() in [6, 0] and current < weekend_second_end)) %}
-    {{ weekday_first or weekday_second or weekend_first or weekend_second }}
+    {% set profiles = [
+      {'days': profile_1_days, 'start': profile_1_start, 'end': profile_1_end,
+       'second': profile_1_second_window_enabled,
+       'second_start': profile_1_second_start, 'second_end': profile_1_second_end},
+      {'days': profile_2_days, 'start': profile_2_start, 'end': profile_2_end,
+       'second': profile_2_second_window_enabled,
+       'second_start': profile_2_second_start, 'second_end': profile_2_second_end},
+      {'days': profile_3_days, 'start': profile_3_start, 'end': profile_3_end,
+       'second': profile_3_second_window_enabled,
+       'second_start': profile_3_second_start, 'second_end': profile_3_second_end}
+    ] %}
+    {% set today_profile_index = namespace(value=-1) %}
+    {% set yesterday_profile_index = namespace(value=-1) %}
+    {% for profile in profiles %}
+      {% if today in profile['days'] and today_profile_index.value == -1 %}
+        {% set today_profile_index.value = loop.index0 %}
+      {% endif %}
+      {% if yesterday in profile['days'] and yesterday_profile_index.value == -1 %}
+        {% set yesterday_profile_index.value = loop.index0 %}
+      {% endif %}
+    {% endfor %}
+    {% set today_profile =
+      profiles[today_profile_index.value]
+      if today_profile_index.value >= 0 else none %}
+    {% set yesterday_profile =
+      profiles[yesterday_profile_index.value]
+      if yesterday_profile_index.value >= 0 else none %}
+    {% set first_now = today_profile is not none and (
+      (today_profile['start'] <= today_profile['end']
+       and today_profile['start'] <= current < today_profile['end'])
+      or (today_profile['start'] > today_profile['end']
+          and current >= today_profile['start'])) %}
+    {% set second_now = today_profile is not none
+      and today_profile['second'] and (
+      (today_profile['second_start'] <= today_profile['second_end']
+       and today_profile['second_start'] <= current < today_profile['second_end'])
+      or (today_profile['second_start'] > today_profile['second_end']
+          and current >= today_profile['second_start'])) %}
+    {% set first_after_midnight = yesterday_profile is not none
+      and yesterday_profile['start'] > yesterday_profile['end']
+      and current < yesterday_profile['end'] %}
+    {% set second_after_midnight = yesterday_profile is not none
+      and yesterday_profile['second']
+      and yesterday_profile['second_start'] > yesterday_profile['second_end']
+      and current < yesterday_profile['second_end'] %}
+    {{ first_now or second_now or first_after_midnight or second_after_midnight }}
   office_presence_active: >-
     {{ expand(person_entities)
        | selectattr('state', 'eq', 'home') | list | count > 0
@@ -337,6 +511,10 @@ variables:
            and office_presence_active | bool) }}
 
 triggers:
+  - trigger: state
+    entity_id: !input thermostat_entities
+    id: thermostat_changed
+
   - trigger: homeassistant
     event: start
     id: startup
@@ -346,6 +524,25 @@ triggers:
 
 actions:
   - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ manual_change_detected }}"
+        sequence:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ manual_override_until_helper }}"
+            data:
+              datetime: >-
+                {{ (now() + timedelta(hours=manual_override_hours | float(2)))
+                   .strftime('%Y-%m-%d %H:%M:%S') }}
+          - stop: Manuelle Thermostatänderung – Override wurde aktiviert.
+
+      - conditions:
+          - condition: trigger
+            id: thermostat_changed
+        sequence:
+          - stop: Thermostat-Zustandsänderung ohne manuelle Sollwertänderung ignoriert.
+
       - conditions:
           - condition: template
             value_template: >-
@@ -389,6 +586,12 @@ actions:
               entity_id: !input thermostat_entities
             data:
               temperature: "{{ window_open_temperature | float }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ manual_override_active }}"
+        sequence:
+          - stop: Manueller Override ist noch aktiv.
 
       - conditions:
           - condition: template

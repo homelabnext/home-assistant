@@ -4,6 +4,15 @@ All notable changes to the HomeLabNext Home Assistant repository are documented 
 
 Blueprints are versioned independently. A repository restructuring does not change blueprint behavior or blueprint versions unless explicitly stated.
 
+## Zigbee Thermostat Scheduler
+
+### v0.7.0
+
+- Replaced weekday/weekend schedule groups with three selectable weekday profiles, each with up to two time windows.
+- Added a persistent manual thermostat override for configurable hours using an input_datetime expiry helper.
+- Preserved safety priority for vacation mode, off mode and open-window temperature.
+- Existing custom weekday/weekend times must be transferred to the new profiles when updating the automation.
+
 ## Mailbox Vibration Notification
 
 ### v0.1.0
