@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.6
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.7
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -10,10 +10,9 @@ blueprint:
     - Day Mode helper (input_boolean): only needed when this cover should hand
       daytime control over to HomeLabNext Adaptive Solar Shading.
     - Debug status helper (input_text): shows what the automation is doing.
-    - Manual override (input_boolean): explicit manual lockout. Optionally detect
-      direct Home Assistant UI actions; physical switch movement cannot reliably
-      be distinguished from integration feedback and is NOT auto-detected.
-      The helper resets at the actual scheduled morning opening or after the fallback timeout.
+    - Manual override (input_boolean): explicit manual lockout. Detect direct Home
+      Assistant UI actions or selected physical switch input entities. The helper
+      resets at the actual scheduled morning opening or after the fallback timeout.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
     - Missed-trigger recovery: checks every 5 minutes whether an evening
@@ -65,8 +64,8 @@ blueprint:
       name: Manual override
       description: >-
         Optional input_boolean. While ON, automatic movement is suppressed,
-        including 5-minute evening recovery and restart recovery. Leave empty
-        if you do not need a manual lockout.
+        including 5-minute evening recovery and restart recovery. Required for
+        UI and physical switch detection.
       default: ""
       selector:
         entity:
@@ -76,12 +75,26 @@ blueprint:
     detect_ui_manual_override:
       name: Detect manual movement from Home Assistant UI
       description: >-
-        Optional. Only user-attributed state changes with a user_id and without
-        parent context activate manual override. Physical switches and external
-        automations are not detected. Leave OFF for maximum reliability.
+        Optional. User-attributed state changes from Home Assistant activate manual
+        override. For a physical switch, select its Shelly input entity below.
       default: false
       selector:
         boolean:
+
+    physical_switch_inputs:
+      name: Physical wall switch inputs
+      description: >-
+        Optional event or binary_sensor entities for physical wall switches.
+        For Shelly, select its input event entity (Input Mode Button) or input
+        binary_sensor (Input Mode Switch). Only selected entities activate the
+        manual override. Requires the Manual override helper above.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: event
+            - domain: binary_sensor
 
     manual_override_duration:
       name: Manual override fallback duration
@@ -311,6 +324,10 @@ triggers:
     entity_id: !input cover_entity
     id: cover_state_changed
 
+  - trigger: state
+    entity_id: !input physical_switch_inputs
+    id: physical_switch
+
   - trigger: homeassistant
     event: start
     id: ha_start
@@ -437,6 +454,32 @@ actions:
           entity_id: "{{ manual_override }}"
 
   - choose:
+      # Explicit physical input events avoid guessing from ordinary cover feedback.
+      - conditions:
+          - condition: trigger
+            id: physical_switch
+          - condition: template
+            value_template: >-
+              {{ manual_override != '' and trigger.from_state is not none and
+                 trigger.to_state is not none and
+                 trigger.from_state.state not in ['unknown', 'unavailable'] and
+                 trigger.to_state.state not in ['unknown', 'unavailable'] and
+                 (trigger.entity_id.split('.')[0] == 'event' or
+                  trigger.from_state.state != trigger.to_state.state) }}
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: "{{ manual_override }}"
+          - if:
+              - condition: template
+                value_template: "{{ debug_status_helper != '' }}"
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: "{{ debug_status_helper }}"
+                data:
+                  value: "Manual override – physical wall switch used"
+
       # A cover state change without this automation as parent context is treated
       # as a manual/external movement and activates the optional override helper.
       - conditions:
