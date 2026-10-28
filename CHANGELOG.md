@@ -6,6 +6,10 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.9.0
+
+- Added optional Logbook debug entries showing each trigger, the selected scheduler rule, current mode, schedule and override status, and thermostat HVAC/preset states.
+
 ### v0.8.0
 
 - Added Aqara preset-aware control: only the configured `auto` preset is scheduled; `manual` and other presets pass through unchanged.
