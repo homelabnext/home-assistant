@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.11.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.12.0"
   description: >
     Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
     können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
@@ -634,7 +634,7 @@ triggers:
 actions:
   - if:
       - condition: template
-        value_template: "{{ debug_helper != '' and states(debug_helper) not in ['unknown', 'unavailable'] }}"
+        value_template: "{{ debug_helper != '' }}"
     then:
       - action: input_text.set_value
         target:
