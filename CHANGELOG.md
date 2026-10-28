@@ -6,6 +6,11 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.13.0
+
+- Kept debug input_text output within the default 100-character helper limit to avoid rejected writes.
+- Prioritized trigger and target-temperature change details in the compact diagnostic.
+
 ### v0.12.0
 
 - Allow the selected debug input_text helper to be initialized when its current state is `unknown`.
