@@ -1,12 +1,12 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.9.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.10.0"
   description: >
     Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
     können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
     Temperaturen bleiben direkt einstellbar. Ein optionaler input_select
     erlaubt das Umschalten zwischen Aus, Auto und Manuell. Aqara-Presets,
     Fensterkontakt, Alarmo-Urlaub, Anwesenheitsregel, manueller Override und
-    Debug-Protokoll sind optional.
+    Diagnoseausgabe in einen input_text-Helper ist optional.
   domain: automation
   source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
   homeassistant:
@@ -67,16 +67,17 @@ blueprint:
           default: auto
           selector:
             text:
-        debug_logging:
-          name: Debug-Protokoll im Logbuch
+        debug_helper:
+          name: Debug-Helper (optional)
           description: >-
-            Protokolliert bei jeder Ausführung den Trigger, die erkannte Regel,
-            den Modus, den Zeitplanstatus sowie Thermostat-Preset und Heizmodus.
-            Während der Fehlersuche aktivieren; bei kurzem Prüfintervall entstehen
-            entsprechend viele Logbuch-Einträge.
-          default: false
+            Ausgewählter input_text-Helper wird bei jeder Ausführung mit dem
+            letzten Diagnoseeintrag überschrieben. Für maximalen Inhalt auf
+            255 Zeichen konfigurieren.
+          default: ""
           selector:
-            boolean:
+            entity:
+              filter:
+                - domain: input_text
         mode_helper:
           name: Optionaler Modus-Helfer
           description: input_select mit exakt den Optionen Aus, Auto und Manuell. Nur bei aktivierter Laufzeit-Umschaltung verwenden.
@@ -414,7 +415,7 @@ variables:
   default_mode: !input default_mode
   respect_thermostat_preset: !input respect_thermostat_preset
   scheduler_preset_mode: !input scheduler_preset_mode
-  debug_logging: !input debug_logging
+  debug_helper: !input debug_helper
   use_mode_helper: !input use_mode_helper
   mode_helper: !input mode_helper
   profile_1_days: !input profile_1_days
@@ -578,35 +579,35 @@ variables:
     {{ ns.states | join(', ') if ns.states else 'keine Entitäten' }}
   debug_action: >-
     {% if manual_change_detected %}
-      manuelle Sollwertänderung erkannt; temporärer Override wird gesetzt
+      Sollwert manuell geändert: Override gesetzt
     {% elif preset_switched_to_schedule and manual_override_until_helper != '' %}
-      Preset auf {{ scheduler_preset_mode }} gewechselt; Override wird aufgehoben
+      Auto-Preset gewählt: Override gelöscht
     {% elif trigger is defined and trigger.id == 'thermostat_changed'
           and not thermostat_schedule_mode_changed %}
-      Thermostat-Änderung ohne relevanten Sollwert-, Heizmodus- oder Presetwechsel ignoriert
+      Thermostat-Änderung ohne relevante Änderung ignoriert
     {% elif vacation_enabled and vacation_alarm != ''
           and is_state(vacation_alarm, 'armed_vacation')
           and thermostat_control_entities | length > 0 %}
-      Urlaubsmodus aktiv; Frostschutztemperatur wird gesetzt
+      Urlaub: Frostschutz gesetzt
     {% elif current_mode == 'Aus' and thermostat_control_entities | length > 0 %}
-      Scheduler-Modus Aus; Thermostate werden ausgeschaltet
+      Scheduler-Aus: Heizmodus ausgeschaltet
     {% elif expand(window_contacts) | selectattr('state', 'eq', 'on') | list | count > 0
           and thermostat_control_entities | length > 0 %}
-      Fensterkontakt offen; Fenster-Temperatur wird gesetzt
+      Fenster offen: Fenster-Temperatur gesetzt
     {% elif manual_override_active %}
-      manueller Temperatur-Override noch aktiv; Zeitplan wird übersprungen
+      Manueller Override aktiv: Zeitplan übersprungen
     {% elif current_mode == 'Manuell' and thermostat_control_entities | length > 0 %}
-      Scheduler-Modus Manuell; manuelle Temperatur wird gesetzt
+      Modus Manuell: Solltemperatur gesetzt
     {% elif current_mode == 'Auto' and use_comfort_temperature
           and thermostat_control_entities | length > 0 %}
-      Auto: Komforttemperatur (Zeitfenster oder Anwesenheitsregel aktiv)
+      Auto: Komforttemperatur gesetzt
     {% elif current_mode == 'Auto' and not use_comfort_temperature
           and thermostat_control_entities | length > 0 %}
-      Auto: Absenktemperatur (Zeitfenster/Anwesenheitsregel nicht aktiv)
+      Auto: Absenktemperatur gesetzt
     {% elif thermostat_control_entities | length == 0 %}
-      keine Thermostate steuerbar; HVAC off oder Preset weicht vom Zeitplan-Preset ab
+      Kein Thermostat steuerbar: Heizmodus off oder Preset abweichend
     {% else %}
-      keine Regel passt; Modus oder benötigte Entität prüfen
+      Keine Regel passt: Modus oder Entität prüfen
     {% endif %}
 
 triggers:
@@ -624,19 +625,18 @@ triggers:
 actions:
   - if:
       - condition: template
-        value_template: "{{ debug_logging }}"
+        value_template: "{{ debug_helper != '' and has_value(debug_helper) }}"
     then:
-      - action: logbook.log
+      - action: input_text.set_value
+        target:
+          entity_id: "{{ debug_helper }}"
         data:
-          name: Thermostat Scheduler Debug
-          message: >-
-            Trigger={{ trigger.id | default('unbekannt') }};
-            Aktion={{ debug_action | trim }};
-            Modus={{ current_mode }};
-            Zeitplan aktiv={{ scheduled_now }};
-            Override aktiv={{ manual_override_active }};
-            steuerbare Entitäten={{ thermostat_control_entities }};
-            Thermostate={{ debug_thermostat_states }}
+          value: >-
+            {{ (now().strftime('%H:%M:%S') ~ ' ' ~
+            (trigger.id | default('unbekannt')) ~ ': ' ~ (debug_action | trim) ~
+            ' | Modus=' ~ current_mode ~ ' | Plan=' ~ scheduled_now ~
+            ' | Override=' ~ manual_override_active ~ ' | ' ~
+            debug_thermostat_states) | truncate(255, true, '') }}
   - choose:
       - conditions:
           - condition: template
