@@ -1,12 +1,12 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.13.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.14.0"
   description: >
     Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
     können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
     Temperaturen bleiben direkt einstellbar. Ein optionaler input_select
     erlaubt das Umschalten zwischen Aus, Auto und Manuell. Aqara-Presets,
-    Fensterkontakt, Alarmo-Urlaub, Anwesenheitsregel, manueller Override und
-    Diagnoseausgabe in einen input_text-Helper ist optional.
+    Fensterkontakt, Alarmo-Urlaub, Anwesenheitsregel, manueller Override,
+    optionale Rückkehr aus dem Manual-Preset und Debug-Helper sind optional.
   domain: automation
   source_url: https://github.com/homelabnext/home-assistant/blob/main/blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml
   homeassistant:
@@ -275,9 +275,9 @@ blueprint:
         manual_override_until_helper:
           name: Override-Ablaufzeit
           description: >-
-            Optionaler input_datetime-Helper mit Datum UND Uhrzeit. Wenn
-            ausgewählt, werden manuelle Sollwert- oder Betriebsartänderungen
-            für die eingestellte Dauer nicht vom Zeitplan überschrieben.
+            input_datetime-Helper mit Datum UND Uhrzeit. Er wird für den
+            zeitlich begrenzten Temperatur-Override und optional für die
+            automatische Rückkehr aus dem Aqara-Preset manual benötigt.
           default: ""
           selector:
             entity:
@@ -293,6 +293,16 @@ blueprint:
               step: 0.5
               unit_of_measurement: h
               mode: box
+        auto_return_manual_preset:
+          name: Aqara-Preset manual nach Override-Dauer auf auto zurückstellen
+          description: >-
+            Wenn das Preset manuell auf manual gestellt wird, startet der
+            Override-Timer. Nach Ablauf wird das Preset auf den oben
+            konfigurierten Zeitplan-Wert zurückgestellt. Benötigt den
+            Ablaufzeit-Helper und die Override-Dauer.
+          default: false
+          selector:
+            boolean:
 
     protection_section:
       name: Fenster und Urlaub (optional)
@@ -438,6 +448,7 @@ variables:
   profile_3_second_end: !input profile_3_second_end
   manual_override_until_helper: !input manual_override_until_helper
   manual_override_hours: !input manual_override_hours
+  auto_return_manual_preset: !input auto_return_manual_preset
   window_contacts: !input window_contacts
   vacation_enabled: !input vacation_enabled
   vacation_alarm: !input vacation_alarm
@@ -487,6 +498,31 @@ variables:
          or trigger.from_state.attributes.get('target_temp_high')
             != trigger.to_state.attributes.get('target_temp_high')
        ) }}
+  manual_preset_entities: >-
+    {% set ns = namespace(entities=[]) %}
+    {% for entity in expand(thermostat_entities) %}
+      {% if entity.state not in ['unknown', 'unavailable']
+            and entity.attributes.get('preset_mode') == 'manual' %}
+        {% set ns.entities = ns.entities + [entity.entity_id] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.entities }}
+  manual_preset_selected: >-
+    {{ trigger is defined and trigger.id == 'thermostat_changed'
+       and trigger.from_state is not none
+       and trigger.to_state is not none
+       and trigger.to_state.context.parent_id is none
+       and trigger.from_state.attributes.get('preset_mode') != 'manual'
+       and trigger.to_state.attributes.get('preset_mode') == 'manual' }}
+  manual_preset_timer_start: >-
+    {{ auto_return_manual_preset and manual_override_until_helper != ''
+       and manual_preset_selected }}
+  manual_preset_return_due: >-
+    {{ auto_return_manual_preset and manual_override_until_helper != ''
+       and has_value(manual_override_until_helper)
+       and as_timestamp(states(manual_override_until_helper), default=0)
+           <= as_timestamp(now())
+       and manual_preset_entities | length > 0 }}
   manual_change_detected: >-
     {{ manual_override_until_helper != ''
        and thermostat_target_change_detected
@@ -581,7 +617,14 @@ variables:
     {% endfor %}
     {{ ns.states | join(', ') if ns.states else 'keine Entitäten' }}
   debug_action: >-
-    {% if manual_change_detected %}
+    {% if manual_preset_timer_start %}
+      Manual-Preset: Timer gestartet
+    {% elif manual_preset_return_due %}
+      Override abgelaufen: Preset auf Auto
+    {% elif manual_preset_selected and auto_return_manual_preset
+          and manual_override_until_helper == '' %}
+      Manual-Preset: Ablauf-Helper fehlt
+    {% elif manual_change_detected %}
       Sollwert: Override gesetzt
     {% elif thermostat_target_change_detected and manual_override_until_helper == '' %}
       Sollwert: kein Override-Helper
@@ -657,6 +700,35 @@ actions:
               ' ' ~ debug_thermostat_states) | truncate(100, true, '') }}
             {% endif %}
   - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ manual_preset_timer_start }}"
+        sequence:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ manual_override_until_helper }}"
+            data:
+              datetime: >-
+                {{ (now() + timedelta(hours=manual_override_hours | float(2)))
+                   .strftime('%Y-%m-%d %H:%M:%S') }}
+          - stop: Aqara-Preset manual gewählt – Timer für Rückkehr auf Auto gestartet.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ manual_preset_return_due }}"
+        sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: "{{ manual_preset_entities }}"
+            data:
+              preset_mode: "{{ scheduler_preset_mode }}"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ manual_override_until_helper }}"
+            data:
+              datetime: "2000-01-01 00:00:00"
+          - stop: Manueller Override abgelaufen – Preset zurückgestellt.
+
       - conditions:
           - condition: template
             value_template: "{{ manual_change_detected }}"
