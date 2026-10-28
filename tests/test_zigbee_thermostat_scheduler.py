@@ -25,6 +25,7 @@ SCHEDULE_TEMPLATE = BLUEPRINT["variables"]["scheduled_now"]
 MANUAL_CHANGE_TEMPLATE = BLUEPRINT["variables"]["manual_change_detected"]
 TARGET_CHANGE_TEMPLATE = BLUEPRINT["variables"]["thermostat_target_change_detected"]
 CONTROL_ENTITIES_TEMPLATE = BLUEPRINT["variables"]["thermostat_control_entities"]
+MANUAL_PRESET_SELECTED_TEMPLATE = BLUEPRINT["variables"]["manual_preset_selected"]
 
 
 def schedule_is_active(moment, **values):
@@ -82,6 +83,16 @@ def target_change_is_detected(from_state, to_state):
     return ENV.from_string(TARGET_CHANGE_TEMPLATE).render(
         trigger=SimpleNamespace(
             id="thermostat_changed", from_state=from_state, to_state=to_state
+        ),
+    ).strip().lower() == "true"
+
+
+def manual_preset_selection_detected(from_state, to_state, parent_id=None):
+    return ENV.from_string(MANUAL_PRESET_SELECTED_TEMPLATE).render(
+        trigger=SimpleNamespace(
+            id="thermostat_changed",
+            from_state=from_state,
+            to_state=to_state,
         ),
     ).strip().lower() == "true"
 
@@ -154,6 +165,14 @@ class ThermostatSchedulerTests(unittest.TestCase):
         )
         self.assertTrue(target_change_is_detected(before, after))
         self.assertFalse(target_change_is_detected(before, scheduled))
+
+    def test_manual_preset_selection_starts_return_timer_only_for_manual_change(self):
+        auto = climate_state("heat", {"preset_mode": "auto"})
+        manual = climate_state("heat", {"preset_mode": "manual"})
+        automated = climate_state("heat", {"preset_mode": "manual"}, parent_id="automation")
+        self.assertTrue(manual_preset_selection_detected(auto, manual))
+        self.assertFalse(manual_preset_selection_detected(auto, automated))
+        self.assertFalse(manual_preset_selection_detected(manual, manual))
 
     def test_target_change_in_manual_preset_does_not_start_override(self):
         before = climate_state("heat", {"temperature": 20, "preset_mode": "manual"})

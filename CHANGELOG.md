@@ -6,6 +6,11 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.14.0
+
+- Added an optional timed return from Aqara preset `manual` to the configured scheduler preset, using the existing persistent override helper and duration.
+- The return changes only the preset and leaves HVAC mode unchanged.
+
 ### v0.13.0
 
 - Kept debug input_text output within the default 100-character helper limit to avoid rejected writes.
