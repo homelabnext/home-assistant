@@ -6,6 +6,10 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.10.0
+
+- Replaced periodic Logbook debug entries with an optional input_text helper that stores the latest trigger, selected rule and thermostat state without filling the Logbook.
+
 ### v0.9.0
 
 - Added optional Logbook debug entries showing each trigger, the selected scheduler rule, current mode, schedule and override status, and thermostat HVAC/preset states.
