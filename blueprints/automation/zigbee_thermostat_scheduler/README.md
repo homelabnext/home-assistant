@@ -1,6 +1,6 @@
 # HomeLabNext – Zigbee Thermostat Scheduler
 
-**Version: v0.13.0**
+**Version: v0.14.0**
 
 Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Assistant-`climate`-Entitäten.
 
@@ -41,6 +41,12 @@ sind. Alarmo-Urlaub, Modus Aus, ein ausgeschalteter Heizmodus, ein Preset unglei
 Bei einem Home-Assistant- oder Zigbee-Dienst-Neustart bleibt die Ablaufzeit im
 Helper erhalten. Wenn keine manuelle Erkennung gewünscht ist, den Helper leer
 lassen.
+
+Optional kannst du **Aqara-Preset manual nach Override-Dauer auf auto zurückstellen**
+aktivieren. Wenn das Thermostat manuell auf `manual` gestellt wird, läuft der
+bestehende Override-Timer. Nach Ablauf stellt der Blueprint das Preset auf den
+konfigurierten Zeitplan-Wert (`auto`) zurück. Der Heizmodus wird dabei nicht
+eingeschaltet oder geändert. Die Einstellung benötigt den Ablaufzeit-Helper.
 
 ## Diagnose-Helper
 
