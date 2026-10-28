@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.12.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.13.0"
   description: >
     Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
     können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
@@ -71,8 +71,8 @@ blueprint:
           name: Debug-Helper (optional)
           description: >-
             Ausgewählter input_text-Helper wird bei jeder Ausführung mit dem
-            letzten Diagnoseeintrag überschrieben. Für maximalen Inhalt auf
-            255 Zeichen konfigurieren.
+            letzten Diagnoseeintrag überschrieben. Die Ausgabe bleibt unter
+            100 Zeichen und passt damit in den Standard-Helper.
           default: ""
           selector:
             entity:
@@ -582,41 +582,41 @@ variables:
     {{ ns.states | join(', ') if ns.states else 'keine Entitäten' }}
   debug_action: >-
     {% if manual_change_detected %}
-      Sollwert durch HA geändert: Override gesetzt
+      Sollwert: Override gesetzt
     {% elif thermostat_target_change_detected and manual_override_until_helper == '' %}
-      Sollwert durch HA geändert: Kein Override-Ablauf-Helper konfiguriert
+      Sollwert: kein Override-Helper
     {% elif thermostat_target_change_detected and respect_thermostat_preset
           and trigger.to_state.attributes.get('preset_mode') is not none
           and trigger.to_state.attributes.get('preset_mode') != scheduler_preset_mode %}
-      Sollwert durch HA geändert: Override durch Preset gesperrt
+      Sollwert: Preset sperrt
     {% elif preset_switched_to_schedule and manual_override_until_helper != '' %}
-      Auto-Preset gewählt: Override gelöscht
+      Auto-Preset: Override gelöscht
     {% elif trigger is defined and trigger.id == 'thermostat_changed'
           and not thermostat_schedule_mode_changed %}
-      Thermostat-Änderung ohne relevante Änderung ignoriert
+      Änderung ignoriert
     {% elif vacation_enabled and vacation_alarm != ''
           and is_state(vacation_alarm, 'armed_vacation')
           and thermostat_control_entities | length > 0 %}
-      Urlaub: Frostschutz gesetzt
+      Urlaub: Frostschutz
     {% elif current_mode == 'Aus' and thermostat_control_entities | length > 0 %}
-      Scheduler-Aus: Heizmodus ausgeschaltet
+      Aus: HVAC off
     {% elif expand(window_contacts) | selectattr('state', 'eq', 'on') | list | count > 0
           and thermostat_control_entities | length > 0 %}
-      Fenster offen: Fenster-Temperatur gesetzt
+      Fenster: Absenkung
     {% elif manual_override_active %}
-      Manueller Override aktiv: Zeitplan übersprungen
+      Override: Zeitplan pausiert
     {% elif current_mode == 'Manuell' and thermostat_control_entities | length > 0 %}
-      Modus Manuell: Solltemperatur gesetzt
+      Manuell: Sollwert
     {% elif current_mode == 'Auto' and use_comfort_temperature
           and thermostat_control_entities | length > 0 %}
-      Auto: Komforttemperatur gesetzt
+      Auto: Komfort
     {% elif current_mode == 'Auto' and not use_comfort_temperature
           and thermostat_control_entities | length > 0 %}
-      Auto: Absenktemperatur gesetzt
+      Auto: Absenkung
     {% elif thermostat_control_entities | length == 0 %}
-      Kein Thermostat steuerbar: Heizmodus off oder Preset abweichend
+      Keine Thermostate steuerbar
     {% else %}
-      Keine Regel passt: Modus oder Entität prüfen
+      Keine Regel
     {% endif %}
 
 triggers:
@@ -641,11 +641,23 @@ actions:
           entity_id: "{{ debug_helper }}"
         data:
           value: >-
-            {{ (now().strftime('%H:%M:%S') ~ ' ' ~
-            (trigger.id | default('unbekannt')) ~ ': ' ~ (debug_action | trim) ~
-            ' | Modus=' ~ current_mode ~ ' | Plan=' ~ scheduled_now ~
-            ' | Override=' ~ manual_override_active ~ ' | ' ~
-            debug_thermostat_states) | truncate(255, true, '') }}
+            {% set before = trigger.from_state.attributes.get('temperature',
+              trigger.from_state.attributes.get('target_temp_low', '?'))
+              if trigger is defined and trigger.from_state is not none else '?' %}
+            {% set after = trigger.to_state.attributes.get('temperature',
+              trigger.to_state.attributes.get('target_temp_low', '?'))
+              if trigger is defined and trigger.to_state is not none else '?' %}
+            {% if thermostat_target_change_detected %}
+              {{ (now().strftime('%H:%M:%S') ~ ' ' ~
+              (trigger.id | default('unbekannt')) ~ ' ' ~ (debug_action | trim) ~
+              ' ' ~ before ~ '>' ~ after ~ ' preset=' ~
+              trigger.to_state.attributes.get('preset_mode', 'n/a'))
+              | truncate(100, true, '') }}
+            {% else %}
+              {{ (now().strftime('%H:%M:%S') ~ ' ' ~
+              (trigger.id | default('unbekannt')) ~ ' ' ~ (debug_action | trim) ~
+              ' ' ~ debug_thermostat_states) | truncate(100, true, '') }}
+            {% endif %}
   - choose:
       - conditions:
           - condition: template
