@@ -6,6 +6,10 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.12.0
+
+- Allow the selected debug input_text helper to be initialized when its current state is `unknown`.
+
 ### v0.11.0
 
 - Detect HA target-temperature changes in the debug helper independently of the optional timed override helper.
