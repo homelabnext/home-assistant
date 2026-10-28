@@ -63,13 +63,18 @@ def climate_state(state, attrs, parent_id=None, user_id=None):
 
 
 def manual_change_is_detected(from_state, to_state):
+    trigger = SimpleNamespace(
+        id="thermostat_changed", from_state=from_state, to_state=to_state
+    )
+    target_changed = ENV.from_string(TARGET_CHANGE_TEMPLATE).render(
+        trigger=trigger,
+    ).strip().lower() == "true"
     return ENV.from_string(MANUAL_CHANGE_TEMPLATE).render(
         manual_override_until_helper="input_datetime.thermostat_override_until",
         respect_thermostat_preset=True,
         scheduler_preset_mode="auto",
-        trigger=SimpleNamespace(
-            id="thermostat_changed", from_state=from_state, to_state=to_state
-        ),
+        thermostat_target_change_detected=target_changed,
+        trigger=trigger,
     ).strip().lower() == "true"
 
 
