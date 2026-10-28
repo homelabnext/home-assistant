@@ -1,6 +1,6 @@
 # HomeLabNext – Zigbee Thermostat Scheduler
 
-**Version: v0.10.0**
+**Version: v0.11.0**
 
 Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Assistant-`climate`-Entitäten.
 
@@ -44,7 +44,7 @@ lassen.
 
 ## Diagnose-Helper
 
-Lege unter **Einstellungen → Geräte & Dienste → Helfer** einen `input_text`-Helper mit maximal 255 Zeichen an und wähle ihn bei **Debug-Helper** aus. Der Blueprint überschreibt den Helper bei jeder Ausführung mit Trigger, erkannter Regel, Modus, Zeitplan-/Override-Status sowie HVAC-Modus und Preset. Es wird nur der letzte Lauf gespeichert; das Logbuch bleibt dadurch frei. Ohne ausgewählten Helper ist die Diagnose deaktiviert.
+Lege unter **Einstellungen → Geräte & Dienste → Helfer** einen `input_text`-Helper mit maximal 255 Zeichen an und wähle ihn bei **Debug-Helper** aus. Der Blueprint überschreibt den Helper bei jeder Ausführung mit Trigger, erkannter Regel, Modus, Zeitplan-/Override-Status, HVAC-Modus, Preset und Solltemperatur. Manuelle Sollwertänderungen werden auch ohne ausgewählten Ablaufzeit-Helper erkannt und angezeigt. Es wird nur der letzte Lauf gespeichert; das Logbuch bleibt dadurch frei. Ohne ausgewählten Helper ist die Diagnose deaktiviert.
 
 ## Optionale Funktionen
 

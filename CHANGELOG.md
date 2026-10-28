@@ -6,6 +6,11 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Zigbee Thermostat Scheduler
 
+### v0.11.0
+
+- Detect HA target-temperature changes in the debug helper independently of the optional timed override helper.
+- Include each thermostat's target temperature in the latest diagnostic state and allow an empty-but-available input_text helper.
+
 ### v0.10.0
 
 - Replaced periodic Logbook debug entries with an optional input_text helper that stores the latest trigger, selected rule and thermostat state without filling the Logbook.

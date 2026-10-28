@@ -23,6 +23,7 @@ BLUEPRINT = yaml.load(
 ENV = Environment(undefined=StrictUndefined)
 SCHEDULE_TEMPLATE = BLUEPRINT["variables"]["scheduled_now"]
 MANUAL_CHANGE_TEMPLATE = BLUEPRINT["variables"]["manual_change_detected"]
+TARGET_CHANGE_TEMPLATE = BLUEPRINT["variables"]["thermostat_target_change_detected"]
 CONTROL_ENTITIES_TEMPLATE = BLUEPRINT["variables"]["thermostat_control_entities"]
 
 
@@ -62,10 +63,23 @@ def climate_state(state, attrs, parent_id=None, user_id=None):
 
 
 def manual_change_is_detected(from_state, to_state):
+    trigger = SimpleNamespace(
+        id="thermostat_changed", from_state=from_state, to_state=to_state
+    )
+    target_changed = ENV.from_string(TARGET_CHANGE_TEMPLATE).render(
+        trigger=trigger,
+    ).strip().lower() == "true"
     return ENV.from_string(MANUAL_CHANGE_TEMPLATE).render(
         manual_override_until_helper="input_datetime.thermostat_override_until",
         respect_thermostat_preset=True,
         scheduler_preset_mode="auto",
+        thermostat_target_change_detected=target_changed,
+        trigger=trigger,
+    ).strip().lower() == "true"
+
+
+def target_change_is_detected(from_state, to_state):
+    return ENV.from_string(TARGET_CHANGE_TEMPLATE).render(
         trigger=SimpleNamespace(
             id="thermostat_changed", from_state=from_state, to_state=to_state
         ),
@@ -131,6 +145,15 @@ class ThermostatSchedulerTests(unittest.TestCase):
         self.assertFalse(manual_change_is_detected(before, scheduled))
         self.assertFalse(manual_change_is_detected(before, current_only))
 
+
+    def test_debug_detects_target_change_without_override_helper_or_auto_preset(self):
+        before = climate_state("heat", {"temperature": 20, "preset_mode": "manual"})
+        after = climate_state("heat", {"temperature": 23, "preset_mode": "manual"})
+        scheduled = climate_state(
+            "heat", {"temperature": 23, "preset_mode": "manual"}, parent_id="automation"
+        )
+        self.assertTrue(target_change_is_detected(before, after))
+        self.assertFalse(target_change_is_detected(before, scheduled))
 
     def test_target_change_in_manual_preset_does_not_start_override(self):
         before = climate_state("heat", {"temperature": 20, "preset_mode": "manual"})

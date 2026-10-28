@@ -1,5 +1,5 @@
 blueprint:
-  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.10.0"
+  name: "HomeLabNext – Zigbee Thermostat Scheduler v0.11.0"
   description: >
     Steuert Climate-Entitäten mit bis zu drei Tagesprofilen. Jedem Profil
     können einzelne Wochentage und bis zu zwei Zeitfenster zugewiesen werden.
@@ -472,17 +472,13 @@ variables:
       {% endif %}
     {% endfor %}
     {{ ns.entities }}
-  manual_change_detected: >-
-    {{ manual_override_until_helper != ''
-       and trigger is defined and trigger.id == 'thermostat_changed'
+  thermostat_target_change_detected: >-
+    {{ trigger is defined and trigger.id == 'thermostat_changed'
        and trigger.from_state is not none
        and trigger.to_state is not none
        and trigger.from_state.state not in ['unknown', 'unavailable']
        and trigger.to_state.state not in ['unknown', 'unavailable']
        and trigger.to_state.context.parent_id is none
-       and (not respect_thermostat_preset
-            or trigger.to_state.attributes.get('preset_mode') is none
-            or trigger.to_state.attributes.get('preset_mode') == scheduler_preset_mode)
        and (
          trigger.from_state.attributes.get('temperature')
             != trigger.to_state.attributes.get('temperature')
@@ -491,6 +487,12 @@ variables:
          or trigger.from_state.attributes.get('target_temp_high')
             != trigger.to_state.attributes.get('target_temp_high')
        ) }}
+  manual_change_detected: >-
+    {{ manual_override_until_helper != ''
+       and thermostat_target_change_detected
+       and (not respect_thermostat_preset
+            or trigger.to_state.attributes.get('preset_mode') is none
+            or trigger.to_state.attributes.get('preset_mode') == scheduler_preset_mode) }}
   thermostat_schedule_mode_changed: >-
     {{ trigger is defined and trigger.id == 'thermostat_changed'
        and trigger.from_state is not none
@@ -573,13 +575,20 @@ variables:
     {% set ns = namespace(states=[]) %}
     {% for entity in expand(thermostat_entities) %}
       {% set preset = entity.attributes.get('preset_mode', 'n/a') %}
+      {% set target = entity.attributes.get('temperature', 'n/a') %}
       {% set ns.states = ns.states + [entity.entity_id ~ '=' ~ entity.state
-        ~ '/preset:' ~ preset] %}
+        ~ '/preset:' ~ preset ~ '/target:' ~ target] %}
     {% endfor %}
     {{ ns.states | join(', ') if ns.states else 'keine Entitäten' }}
   debug_action: >-
     {% if manual_change_detected %}
-      Sollwert manuell geändert: Override gesetzt
+      Sollwert durch HA geändert: Override gesetzt
+    {% elif thermostat_target_change_detected and manual_override_until_helper == '' %}
+      Sollwert durch HA geändert: Kein Override-Ablauf-Helper konfiguriert
+    {% elif thermostat_target_change_detected and respect_thermostat_preset
+          and trigger.to_state.attributes.get('preset_mode') is not none
+          and trigger.to_state.attributes.get('preset_mode') != scheduler_preset_mode %}
+      Sollwert durch HA geändert: Override durch Preset gesperrt
     {% elif preset_switched_to_schedule and manual_override_until_helper != '' %}
       Auto-Preset gewählt: Override gelöscht
     {% elif trigger is defined and trigger.id == 'thermostat_changed'
@@ -625,7 +634,7 @@ triggers:
 actions:
   - if:
       - condition: template
-        value_template: "{{ debug_helper != '' and has_value(debug_helper) }}"
+        value_template: "{{ debug_helper != '' and states(debug_helper) not in ['unknown', 'unavailable'] }}"
     then:
       - action: input_text.set_value
         target:
