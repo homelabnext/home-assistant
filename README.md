@@ -10,7 +10,7 @@ The repository is structured so that every component can be used independently. 
 
 Control one or more climate entities with up to three selectable weekday profiles, two time windows per profile, direct temperature settings, Aqara preset-aware scheduling, a time-limited manual override and optional input_text diagnostics for trigger and target-temperature changes.
 
-**Current version:** v0.11.0
+**Current version:** v0.12.0
 
 [Blueprint file](blueprints/automation/zigbee_thermostat_scheduler/zigbee_thermostat_scheduler.yaml) · [Documentation](blueprints/automation/zigbee_thermostat_scheduler/README.md)
 
