@@ -641,13 +641,11 @@ actions:
           entity_id: "{{ debug_helper }}"
         data:
           value: >-
-            {% set before = trigger.from_state.attributes.get('temperature',
-              trigger.from_state.attributes.get('target_temp_low', '?'))
-              if trigger is defined and trigger.from_state is not none else '?' %}
-            {% set after = trigger.to_state.attributes.get('temperature',
-              trigger.to_state.attributes.get('target_temp_low', '?'))
-              if trigger is defined and trigger.to_state is not none else '?' %}
             {% if thermostat_target_change_detected %}
+              {% set before = trigger.from_state.attributes.get('temperature',
+                trigger.from_state.attributes.get('target_temp_low', '?')) %}
+              {% set after = trigger.to_state.attributes.get('temperature',
+                trigger.to_state.attributes.get('target_temp_low', '?')) %}
               {{ (now().strftime('%H:%M:%S') ~ ' ' ~
               (trigger.id | default('unbekannt')) ~ ' ' ~ (debug_action | trim) ~
               ' ' ~ before ~ '>' ~ after ~ ' preset=' ~
