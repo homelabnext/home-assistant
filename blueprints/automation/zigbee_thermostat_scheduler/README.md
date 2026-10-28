@@ -1,6 +1,6 @@
 # HomeLabNext – Zigbee Thermostat Scheduler
 
-**Version: v0.8.0**
+**Version: v0.9.0**
 
 Steuert Sonoff TRVZB, Aqara E1, Aqara W600 und andere Thermostate über Home-Assistant-`climate`-Entitäten.
 
@@ -41,6 +41,10 @@ sind. Alarmo-Urlaub, Modus Aus, ein ausgeschalteter Heizmodus, ein Preset unglei
 Bei einem Home-Assistant- oder Zigbee-Dienst-Neustart bleibt die Ablaufzeit im
 Helper erhalten. Wenn keine manuelle Erkennung gewünscht ist, den Helper leer
 lassen.
+
+## Debug-Protokoll
+
+Aktiviere **Debug-Protokoll im Logbuch** in der Automation, um bei jeder Ausführung den Trigger, die gewählte Regel, den Modus, den Zeitplanstatus sowie HVAC-Modus und Preset der ausgewählten Thermostate zu sehen. Die Einträge erscheinen im Home-Assistant-Logbuch. Bei einem einminütigen Prüfintervall entsteht pro Minute ein Eintrag; nach der Fehlersuche wieder deaktivieren.
 
 ## Optionale Funktionen
 
