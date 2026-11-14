@@ -395,9 +395,14 @@ actions:
         {{ is_state(cover_entity, 'closed') or
            (pos is not none and (pos | int) <= (close_position | int)) }}
       cover_position_increased: >-
-        {% set old = trigger.from_state.attributes.get('current_position') %}
-        {% set new = trigger.to_state.attributes.get('current_position') %}
-        {{ old is not none and new is not none and (new | float(0)) > (old | float(0)) }}
+        {% if trigger.id == 'cover_state_changed' and
+              trigger.from_state is not none and trigger.to_state is not none %}
+          {% set old = trigger.from_state.attributes.get('current_position') %}
+          {% set new = trigger.to_state.attributes.get('current_position') %}
+          {{ old is not none and new is not none and (new | float(0)) > (old | float(0)) }}
+        {% else %}
+          false
+        {% endif %}
       cover_change_is_manual: >-
         {{ trigger.id == 'cover_state_changed' and
            trigger.to_state is not none and
