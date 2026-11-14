@@ -62,6 +62,11 @@ Blueprints are versioned independently. A repository restructuring does not chan
 
 ## Morning & Evening Cover Control
 
+### v0.1.8
+
+- Detect external/manual opening movements from the cover entity state or increasing position, even when the Shelly input event is not selected or exposed.
+- Set the selected manual override helper before the 5-minute recovery can close the cover again.
+
 ### v0.1.7
 
 - Added optional physical wall switch input detection using selected Shelly event or binary_sensor entities.
