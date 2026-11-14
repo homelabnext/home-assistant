@@ -1,5 +1,5 @@
 blueprint:
-  name: HomeLabNext – Morning & Evening Cover Control v0.1.7
+  name: HomeLabNext – Morning & Evening Cover Control v0.1.8
   description: >-
     Daily opening and closing control for Home Assistant covers.
 
@@ -10,8 +10,8 @@ blueprint:
     - Day Mode helper (input_boolean): only needed when this cover should hand
       daytime control over to HomeLabNext Adaptive Solar Shading.
     - Debug status helper (input_text): shows what the automation is doing.
-    - Manual override (input_boolean): explicit manual lockout. Detect direct Home
-      Assistant UI actions or selected physical switch input entities. The helper
+    - Manual override (input_boolean): explicit manual lockout. Detects direct Home Assistant UI actions, selected
+      physical switch inputs, and external cover opening movements. The helper
       resets at the actual scheduled morning opening or after the fallback timeout.
     - Vacation mode (input_boolean): enables the separate vacation schedule.
     - Window / door contacts (binary_sensor): delay evening closing while open.
@@ -65,7 +65,7 @@ blueprint:
       description: >-
         Optional input_boolean. While ON, automatic movement is suppressed,
         including 5-minute evening recovery and restart recovery. Required for
-        UI and physical switch detection.
+        detected UI, cover and physical switch movement.
       default: ""
       selector:
         entity:
@@ -405,6 +405,7 @@ actions:
         {% endif %}
       cover_change_is_manual: >-
         {{ trigger.id == 'cover_state_changed' and
+           manual_override != '' and
            trigger.to_state is not none and
            trigger.from_state is not none and
            trigger.to_state.state not in ['unknown', 'unavailable'] and
@@ -526,7 +527,7 @@ actions:
           - condition: trigger
             id: cover_state_changed
         sequence:
-          - stop: "Cover state update ignored (not a confirmed UI manual action)"
+          - stop: "Cover state update ignored (no external manual opening detected)"
 
       # Manual override: never move a cover automatically.
       - conditions:
