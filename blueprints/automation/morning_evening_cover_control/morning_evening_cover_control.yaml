@@ -394,14 +394,29 @@ actions:
         {% set pos = state_attr(cover_entity, 'current_position') %}
         {{ is_state(cover_entity, 'closed') or
            (pos is not none and (pos | int) <= (close_position | int)) }}
+      cover_position_increased: >-
+        {% set old = trigger.from_state.attributes.get('current_position') %}
+        {% set new = trigger.to_state.attributes.get('current_position') %}
+        {{ old is not none and new is not none and (new | float(0)) > (old | float(0)) }}
       cover_change_is_manual: >-
         {{ trigger.id == 'cover_state_changed' and
-           detect_ui_manual_override and
            trigger.to_state is not none and
            trigger.from_state is not none and
            trigger.to_state.state not in ['unknown', 'unavailable'] and
-           trigger.to_state.context.user_id is not none and
-           trigger.to_state.context.parent_id is none }}
+           (
+             (detect_ui_manual_override and
+              trigger.to_state.context.user_id is not none and
+              trigger.to_state.context.parent_id is none)
+             or
+             (trigger.to_state.context.user_id is none and
+              trigger.to_state.context.parent_id is none and
+              (
+                trigger.to_state.state == 'opening' or
+                (trigger.from_state.state in ['closed', 'closing'] and
+                 trigger.to_state.state in ['open', 'opening']) or
+                cover_position_increased
+              ))
+           ) }}
       override_timeout_reached: >-
         {{ manual_override != '' and is_state(manual_override, 'on') and
            (manual_override_duration | int) > 0 and
