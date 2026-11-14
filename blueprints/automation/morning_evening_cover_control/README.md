@@ -24,8 +24,10 @@ All helpers are optional.
 
 Select the Shelly input entity that belongs to the physical wall switch. Depending on
 the Shelly input configuration, this is either an `event` entity (Input Mode
-`Button`) or a `binary_sensor` (Input Mode `Switch`). The selected input sets
-the Manual Override helper, so automatic recovery does not close the cover again.
+`Button`) or a `binary_sensor` (Input Mode `Switch`). Also select the Manual Override
+helper. As a fallback, the blueprint now detects an external opening movement from
+the cover entity itself (state or increasing position) and activates that helper.
+This blocks the 5-minute recovery from immediately closing a manually opened cover.
 
 ## Using it with Adaptive Solar Shading
 
@@ -62,4 +64,4 @@ Raw import URL:
 
 ## Version
 
-v0.1.7
+v0.1.8
